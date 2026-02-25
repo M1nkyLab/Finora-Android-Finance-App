@@ -168,7 +168,9 @@ fun AiInputSheet(
                     parsed = parsed,
                     currency = currency,
                     onConfirm = viewModel::confirmAndSave,
-                    onCancel = viewModel::reset
+                    onCancel = viewModel::reset,
+                    onEditAmount = viewModel::editParsedAmount,
+                    onEditTitle = viewModel::editParsedTitle
                 )
             }
         }
@@ -403,11 +405,17 @@ private fun ParsedResultCard(
     parsed: ParsedTransaction,
     currency: CurrencyConfig,
     onConfirm: () -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    onEditAmount: (Double) -> Unit,
+    onEditTitle: (String) -> Unit
 ) {
     val isIncome = parsed.type == "income"
     val accentColor = if (isIncome) AccentGreen else AccentRed
     val sign = if (isIncome) "+" else "−"
+
+    var isEditing by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var titleText by androidx.compose.runtime.remember(parsed.title) { androidx.compose.runtime.mutableStateOf(parsed.title) }
+    var amountText by androidx.compose.runtime.remember(parsed.amount) { androidx.compose.runtime.mutableStateOf(parsed.amount.toString()) }
 
     Column(
         modifier = Modifier
@@ -446,23 +454,59 @@ private fun ParsedResultCard(
                 .padding(20.dp)
         ) {
             // Amount row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    parsed.title,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary
-                )
-                Text(
-                    "$sign${currency.format(parsed.amount)}",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = accentColor
-                )
+            if (isEditing) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    androidx.compose.material3.OutlinedTextField(
+                        value = titleText,
+                        onValueChange = { titleText = it; onEditTitle(it) },
+                        label = { Text("Title", color = TextSub) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = AccentPurple,
+                            unfocusedBorderColor = TextSub.copy(alpha = 0.5f)
+                        ),
+                        singleLine = true
+                    )
+                    androidx.compose.material3.OutlinedTextField(
+                        value = amountText,
+                        onValueChange = { 
+                            amountText = it
+                            it.toDoubleOrNull()?.let { num -> onEditAmount(num) }
+                        },
+                        label = { Text("Amount", color = TextSub) },
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = AccentPurple,
+                            unfocusedBorderColor = TextSub.copy(alpha = 0.5f)
+                        ),
+                        singleLine = true
+                    )
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        parsed.title,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        "$sign${currency.format(parsed.amount)}",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = accentColor
+                    )
+                }
             }
 
             Spacer(Modifier.height(14.dp))
@@ -519,37 +563,59 @@ private fun ParsedResultCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 // Cancel
+                if (!isEditing) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .bounceClick { onCancel() }
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.Transparent)
+                            .border(1.dp, TextSub.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.Close, contentDescription = null, tint = TextSub, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Cancel", color = TextSub, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
+
+                // Edit Button
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .bounceClick { onCancel() }
+                        .bounceClick { isEditing = !isEditing }
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color.Transparent)
+                        .background(if (isEditing) TextSub.copy(alpha = 0.2f) else Color.Transparent)
                         .border(1.dp, TextSub.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
                         .padding(vertical = 12.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.Close, contentDescription = null, tint = TextSub, modifier = Modifier.size(18.dp))
+                        Icon(if (isEditing) Icons.Rounded.Close else Icons.Rounded.Edit, contentDescription = null, tint = TextPrimary, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Cancel", color = TextSub, fontWeight = FontWeight.Medium)
+                        Text(if (isEditing) "Done" else "Edit", color = TextPrimary, fontWeight = FontWeight.Medium)
                     }
                 }
 
                 // Confirm
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .bounceClick { onConfirm() }
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(AccentGreen)
-                        .padding(vertical = 12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Confirm", fontWeight = FontWeight.Bold, color = Color.White)
+                if (!isEditing) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .bounceClick { onConfirm() }
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(AccentGreen)
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Confirm", fontWeight = FontWeight.Bold, color = Color.White)
+                        }
                     }
                 }
             }

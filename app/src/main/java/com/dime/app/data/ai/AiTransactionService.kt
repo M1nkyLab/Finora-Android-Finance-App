@@ -4,6 +4,9 @@ import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
 import com.google.ai.client.generativeai.type.generationConfig
 import org.json.JSONObject
+import org.json.JSONArray
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
@@ -138,18 +141,56 @@ Output:
         }
 
         return try {
-            val model = GenerativeModel(
-                modelName = "gemini-2.5-flash",
-                apiKey = apiKey,
-                generationConfig = generationConfig {
-                    temperature = 0.1f      // Low creativity – we want precision
-                    maxOutputTokens = 256
-                }
-            )
-
             val prompt = buildPrompt(userInput)
-            val response = model.generateContent(content { text(prompt) })
-            val rawText = response.text?.trim() ?: return AiParseResult.Error("Empty response from AI.")
+            val jsonPayload = JSONObject().apply {
+                put("contents", JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("parts", JSONArray().apply {
+                            put(JSONObject().apply {
+                                put("text", prompt)
+                            })
+                        })
+                    })
+                })
+                put("generationConfig", JSONObject().apply {
+                    put("temperature", 0.1)
+                    put("maxOutputTokens", 256)
+                })
+            }
+
+            val responseBody = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val url = java.net.URL("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey")
+                val connection = url.openConnection() as java.net.HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.doOutput = true
+
+                connection.outputStream.use { os ->
+                    val input = jsonPayload.toString().toByteArray(Charsets.UTF_8)
+                    os.write(input, 0, input.size)
+                }
+
+                val statusCode = connection.responseCode
+                if (statusCode != 200) {
+                    val errorStream = connection.errorStream
+                    val errorResponse = errorStream?.bufferedReader()?.use { it.readText() } ?: "Unknown HTTP error"
+                    throw RuntimeException("API error ($statusCode): $errorResponse")
+                }
+
+                connection.inputStream.bufferedReader().use { it.readText() }
+            }
+
+            val responseJson = JSONObject(responseBody)
+            val candidates = responseJson.optJSONArray("candidates") ?: JSONArray()
+            if (candidates.length() == 0) {
+                return AiParseResult.Error("No candidates returned.")
+            }
+            
+            val contentObj = candidates.getJSONObject(0).optJSONObject("content")
+            val parts = contentObj?.optJSONArray("parts") ?: JSONArray()
+            val rawText = if (parts.length() > 0) parts.getJSONObject(0).optString("text", "") else ""
+            
+            if (rawText.isBlank()) return AiParseResult.Error("Empty response from AI.")
 
             // Strip any markdown fencing the model might add despite instructions
             val jsonStr = rawText
@@ -175,6 +216,8 @@ Output:
 
             AiParseResult.Success(parsed)
         } catch (e: Exception) {
+            val trace = android.util.Log.getStackTraceString(e)
+            android.util.Log.e("AiTransactionService", "Error parsing transaction: $trace")
             AiParseResult.Error("AI error: ${e.localizedMessage ?: "Unknown error"}")
         }
     }

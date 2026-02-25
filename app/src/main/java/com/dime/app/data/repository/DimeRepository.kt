@@ -39,6 +39,7 @@ class DimeRepository @Inject constructor(
     private val _templates    = MutableStateFlow<List<TemplateTransactionEntity>>(emptyList())
 
     init {
+        android.util.Log.d("DimeRepository", "Init repo and refreshAll")
         scope.launch { refreshAll() }
     }
 
@@ -57,6 +58,8 @@ class DimeRepository @Inject constructor(
             _categories.value = supabase.from("categories")
                 .select()
                 .decodeList<CategoryEntity>()
+        }.onFailure {
+            android.util.Log.e("DimeRepository", "Error fetching categories", it)
         }
     }
 
@@ -65,7 +68,7 @@ class DimeRepository @Inject constructor(
             _transactions.value = supabase.from("transactions")
                 .select()
                 .decodeList<TransactionEntity>()
-        }
+        }.onFailure { android.util.Log.e("DimeRepository", "Error fetching transactions", it) }
     }
 
     private suspend fun refreshBudgets() {
@@ -73,7 +76,7 @@ class DimeRepository @Inject constructor(
             _budgets.value = supabase.from("budgets")
                 .select()
                 .decodeList<BudgetEntity>()
-        }
+        }.onFailure { android.util.Log.e("DimeRepository", "Error fetching budgets", it) }
     }
 
     private suspend fun refreshMainBudget() {
@@ -94,6 +97,8 @@ class DimeRepository @Inject constructor(
     }
 
     // ── Categories ─────────────────────────────────────────────────────────────
+
+    fun allCategories(): Flow<List<CategoryEntity>> = _categories
 
     fun categories(income: Boolean): Flow<List<CategoryEntity>> =
         _categories.map { list -> list.filter { it.income == income }.sortedBy { it.order } }

@@ -110,9 +110,9 @@ class SettingsViewModel @Inject constructor(
                 _uiState.update { it.copy(transactionCount = list.size) }
             }
         }
-        // Count expense categories
+        // Count all categories
         viewModelScope.launch {
-            repo.categories(income = false).collect { list ->
+            repo.allCategories().collect { list ->
                 _uiState.update { it.copy(categoryCount = list.size) }
             }
         }

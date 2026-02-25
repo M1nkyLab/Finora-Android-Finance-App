@@ -114,7 +114,17 @@ class AiInputViewModel @Inject constructor(
 
         viewModelScope.launch {
             val isIncome = parsed.type == "income"
-            val categoryId = aiService.categoryMapping[parsed.category]
+            
+            // Fetch all database categories dynamically
+            val allCats = repo.allCategories().first()
+            
+            // Try matching the AI's category string ignoring case
+            var categoryId = allCats.find { it.name.equals(parsed.category, ignoreCase = true) }?.id
+            
+            // If not found, pick the first appropriate fallback
+            if (categoryId == null) {
+                categoryId = allCats.find { it.income == isIncome }?.id ?: allCats.firstOrNull()?.id ?: ""
+            }
 
             // Resolve date to epoch millis
             val zdt = parsed.date.atStartOfDay(ZoneId.systemDefault())

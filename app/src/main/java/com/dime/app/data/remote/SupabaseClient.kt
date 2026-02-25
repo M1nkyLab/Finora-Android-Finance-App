@@ -6,6 +6,8 @@ import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.serializer.KotlinXSerializer
+import kotlinx.serialization.json.Json
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -23,6 +25,11 @@ object SupabaseModule {
             supabaseUrl  = BuildConfig.SUPABASE_URL,
             supabaseKey  = BuildConfig.SUPABASE_ANON_KEY
         ) {
+            defaultSerializer = KotlinXSerializer(Json {
+                ignoreUnknownKeys = true
+                isLenient = true
+                coerceInputValues = true
+            })
             install(Postgrest)
             install(Auth)
             install(Realtime)
