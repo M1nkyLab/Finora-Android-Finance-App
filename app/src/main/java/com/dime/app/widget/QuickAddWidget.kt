@@ -10,6 +10,8 @@ import com.dime.app.R
 import com.dime.app.data.repository.DimeRepository
 import com.dime.app.domain.model.TimePeriod
 import com.dime.app.domain.model.toDateRange
+import com.dime.app.ui.settings.PrefKeys
+import com.dime.app.ui.settings.dataStore
 import com.dime.app.util.CurrencyConfig
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -80,11 +82,38 @@ class QuickAddWidget : AppWidgetProvider() {
                 val safeToSpend = if (daysRemaining > 0 && balance > 0)
                     balance / daysRemaining else 0.0
 
-                val formatter = CurrencyConfig()
+                val prefs = context.dataStore.data.first()
+                val symbol = prefs[PrefKeys.CURRENCY_SYMBOL] ?: "$"
+                val code = prefs[PrefKeys.CURRENCY_CODE] ?: "USD"
+                val showCents = prefs[PrefKeys.SHOW_CENTS] ?: true
+                
+                val formatter = CurrencyConfig(symbol, code, showCents)
                 val balanceText = formatter.format(balance)
                 val safeText = "Safe to spend: ${formatter.format(safeToSpend)}/day"
+                
+                val uiMode = context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+                val isSystemDark = uiMode == android.content.res.Configuration.UI_MODE_NIGHT_YES
+                val themeOrdinal = prefs[PrefKeys.COLOUR_SCHEME] ?: 0
+                val isDark = when(themeOrdinal) {
+                    1 -> false
+                    2 -> true
+                    else -> isSystemDark
+                }
 
                 val updatedViews = RemoteViews(context.packageName, R.layout.widget_quick_add)
+                
+                if (isDark) {
+                    updatedViews.setInt(R.id.widget_root, "setBackgroundResource", R.drawable.widget_bg_quick_add_dark)
+                    updatedViews.setTextColor(R.id.tv_subtitle, android.graphics.Color.parseColor("#A0A0A0"))
+                    updatedViews.setTextColor(R.id.tv_main_balance, android.graphics.Color.parseColor("#FFFFFF"))
+                    updatedViews.setTextColor(R.id.tv_secondary_metric, android.graphics.Color.parseColor("#CCCCCC"))
+                } else {
+                    updatedViews.setInt(R.id.widget_root, "setBackgroundResource", R.drawable.widget_bg_quick_add)
+                    updatedViews.setTextColor(R.id.tv_subtitle, android.graphics.Color.parseColor("#666666"))
+                    updatedViews.setTextColor(R.id.tv_main_balance, android.graphics.Color.parseColor("#0052FF"))
+                    updatedViews.setTextColor(R.id.tv_secondary_metric, android.graphics.Color.parseColor("#333333"))
+                }
+
                 updatedViews.setTextViewText(R.id.tv_main_balance, balanceText)
                 updatedViews.setTextViewText(R.id.tv_secondary_metric, safeText)
                 updatedViews.setOnClickPendingIntent(R.id.btn_quick_add, pendingIntent)

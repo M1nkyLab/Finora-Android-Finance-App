@@ -286,7 +286,7 @@ private fun PeriodSummaryCard(
             verticalAlignment = Alignment.Top
         ) {
             // Left: Date + Net Balance
-            Column {
+            Column(horizontalAlignment = Alignment.Start) {
                 Text(
                     text = state.periodLabel.uppercase(),
                     fontSize = 11.sp,
@@ -294,7 +294,13 @@ private fun PeriodSummaryCard(
                     color = TextSub,
                     letterSpacing = 0.3.sp
                 )
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "NET BALANCE",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextHint
+                )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = (if (s.netPositive) "+" else "−") + currency.code + " ",
@@ -735,7 +741,7 @@ private fun InsightsDayHeader(date: Long, net: Double) {
                 letterSpacing = 1.sp
             )
             Text(
-                text = (if (net >= 0) "+" else "\u2212") + currency.format(abs(net)),
+                text = "NET " + (if (net >= 0) "+" else "\u2212") + currency.format(abs(net)),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextSub

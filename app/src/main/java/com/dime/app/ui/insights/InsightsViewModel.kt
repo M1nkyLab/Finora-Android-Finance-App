@@ -153,8 +153,17 @@ class InsightsViewModel @Inject constructor(
         val prevInPeriod = all.filter { it.date in prevStart until minOf(prevEnd, now) }
         val prevSpent    = prevInPeriod.filter { !it.income }.sumOf { it.amount }
 
-        val days = when (tf) { InsightsTimeFrame.WEEK -> 7.0; InsightsTimeFrame.MONTH -> 30.0; InsightsTimeFrame.YEAR -> 365.0 }
-        val avgPerDay = totalSpent / days
+        val daysInPeriod = when (tf) { InsightsTimeFrame.WEEK -> 7; InsightsTimeFrame.MONTH -> 30; InsightsTimeFrame.YEAR -> 365 }
+        
+        val elapsedDays = if (end > now && start <= now) {
+            val diffMs = now - start
+            val diffDays = (diffMs / 86_400_000L).toInt() + 1
+            diffDays.coerceIn(1, daysInPeriod)
+        } else {
+            daysInPeriod
+        }
+        
+        val avgPerDay = totalSpent / elapsedDays.toDouble()
 
         val bars = buildBars(all, start, end, tf, income)
         val (expSlices, incSlices) = buildSlices(all, start, end)

@@ -126,10 +126,14 @@ class AiInputViewModel @Inject constructor(
                 categoryId = allCats.find { it.income == isIncome }?.id ?: allCats.firstOrNull()?.id ?: ""
             }
 
-            // Resolve date to epoch millis
-            val zdt = parsed.date.atStartOfDay(ZoneId.systemDefault())
-            val dateMs = zdt.toInstant().toEpochMilli()
-            val dayMs = zdt.toInstant().toEpochMilli()
+            // Resolve date to epoch millis using the current phone time for the transaction
+            val transactionTime = parsed.date.atTime(java.time.LocalTime.now()).atZone(ZoneId.systemDefault())
+            val dateMs = transactionTime.toInstant().toEpochMilli()
+            
+            // The Day start MS should still probably be start of day depending on app logic, 
+            // but for dateMs we use the exact time. The original logic made dayMs same as dateMs logic.
+            // Let's keep dayMs at start of day.
+            val dayMs = parsed.date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
             val monthMs = parsed.date.withDayOfMonth(1)
                 .atStartOfDay(ZoneId.systemDefault())
                 .toInstant().toEpochMilli()
