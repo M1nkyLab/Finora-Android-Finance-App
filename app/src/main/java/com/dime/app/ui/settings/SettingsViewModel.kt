@@ -21,19 +21,13 @@ object PrefKeys {
     val CURRENCY_SYMBOL     = stringPreferencesKey("currency_symbol")
     val CURRENCY_CODE       = stringPreferencesKey("currency_code")
     val SHOW_CENTS          = booleanPreferencesKey("show_cents")
-    val FIRST_WEEKDAY       = intPreferencesKey("first_weekday")  // 1=Sun, 2=Mon
-    val HAPTIC_TYPE         = intPreferencesKey("haptic_type")    // 0=none,1=light,2=heavy
+
     val COLOUR_SCHEME       = intPreferencesKey("colour_scheme")  // 0=system,1=light,2=dark
-    val NOTIFICATIONS_ON    = booleanPreferencesKey("notifications_on")
+
     val GEMINI_API_KEY      = stringPreferencesKey("gemini_api_key")
 }
 
-// ── Haptic feedback levels ────────────────────────────────────────────────────
-enum class HapticType(val label: String) {
-    NONE("Off"), LIGHT("Light"), HEAVY("Heavy");
 
-    companion object { fun fromOrdinal(o: Int) = entries.getOrElse(o) { LIGHT } }
-}
 
 // ── Colour scheme options ─────────────────────────────────────────────────────
 enum class ColourScheme(val label: String) {
@@ -47,10 +41,9 @@ data class SettingsUiState(
     val currencySymbol: String  = "$",
     val currencyCode: String    = "USD",
     val showCents: Boolean      = true,
-    val firstWeekday: Int       = 2,          // 2 = Monday
-    val hapticType: HapticType  = HapticType.LIGHT,
+
     val colourScheme: ColourScheme = ColourScheme.SYSTEM,
-    val notificationsEnabled: Boolean = false,
+
     val geminiApiKey: String    = "",
     // Stats shown in Settings header
     val transactionCount: Int   = 0,
@@ -92,10 +85,9 @@ class SettingsViewModel @Inject constructor(
                             currencySymbol   = p[PrefKeys.CURRENCY_SYMBOL] ?: "$",
                             currencyCode     = p[PrefKeys.CURRENCY_CODE] ?: "USD",
                             showCents        = p[PrefKeys.SHOW_CENTS] ?: true,
-                            firstWeekday     = p[PrefKeys.FIRST_WEEKDAY] ?: 2,
-                            hapticType       = HapticType.fromOrdinal(p[PrefKeys.HAPTIC_TYPE] ?: 1),
+
                             colourScheme     = ColourScheme.fromOrdinal(p[PrefKeys.COLOUR_SCHEME] ?: 0),
-                            notificationsEnabled = p[PrefKeys.NOTIFICATIONS_ON] ?: false,
+
                             geminiApiKey     = p[PrefKeys.GEMINI_API_KEY] ?: ""
                         )
                     }
@@ -136,17 +128,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setFirstWeekday(day: Int) {
-        viewModelScope.launch {
-            getApplication<Application>().dataStore.edit { p -> p[PrefKeys.FIRST_WEEKDAY] = day }
-        }
-    }
 
-    fun setHapticType(type: HapticType) {
-        viewModelScope.launch {
-            getApplication<Application>().dataStore.edit { p -> p[PrefKeys.HAPTIC_TYPE] = type.ordinal }
-        }
-    }
 
     fun setColourScheme(scheme: ColourScheme) {
         viewModelScope.launch {
@@ -154,11 +136,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setNotifications(enabled: Boolean) {
-        viewModelScope.launch {
-            getApplication<Application>().dataStore.edit { p -> p[PrefKeys.NOTIFICATIONS_ON] = enabled }
-        }
-    }
+
 
     // ── Currency picker ────────────────────────────────────────────────────────
 

@@ -20,30 +20,19 @@ data class CurrencyConfig(
         return try {
             val format = NumberFormat.getCurrencyInstance(Locale.getDefault())
             format.currency = Currency.getInstance(code)
-            format.minimumFractionDigits = 2
-            format.maximumFractionDigits = 2
             
-            // If the symbol in the chosen code doesn't match our 'symbol' (custom), 
-            // we might want to override. But usually user picks standard codes.
-            // For now, let's use the standard formatter with the selected currency code.
-            
-            var result = format.format(amount)
-            
-            // If user explicitly provided a custom symbol that differs from the default for that code
-            // (rare in standard apps but possible in Dime's UI), we could do string replacement.
-            // However, sticking to the standard Currency instance is safer for localizations.
-            
-            if (!showCents && amount % 1.0 == 0.0) {
-                result = result.substringBefore(".")
-                // Note: This is a bit naive for locales with different decimal separators.
-                // A better way is setting fraction digits:
+            if (showCents) {
+                format.minimumFractionDigits = 2
+                format.maximumFractionDigits = 2
+            } else {
+                format.minimumFractionDigits = 0
                 format.maximumFractionDigits = 0
-                result = format.format(amount)
             }
-            result
+            
+            format.format(amount)
         } catch (e: Exception) {
-            // Fallback
-            "${symbol}${String.format("%.2f", amount)}"
+            val decimals = if (showCents) 2 else 0
+            "${symbol}${String.format("%.${decimals}f", amount)}"
         }
     }
 }

@@ -98,47 +98,9 @@ fun SettingsScreen(
                 }
             }
 
-            // ── Calendar ────────────────────────────────────────────────────
-            item {
-                SettingsSection(title = "Calendar") {
-                    SegmentedRow(
-                        icon     = Icons.Rounded.CalendarToday,
-                        iconTint = Color(0xFFFF9F0A),
-                        label    = "Week starts",
-                        options  = listOf("Sun", "Mon"),
-                        selected = if (state.firstWeekday == 1) 0 else 1,
-                        onSelect = { viewModel.setFirstWeekday(if (it == 0) 1 else 2) }
-                    )
-                }
-            }
 
-            // ── Haptics ─────────────────────────────────────────────────────
-            item {
-                SettingsSection(title = "Haptics") {
-                    SegmentedRow(
-                        icon     = Icons.Rounded.Vibration,
-                        iconTint = Color(0xFFFF6B6B),
-                        label    = "Feedback",
-                        options  = HapticType.entries.map { it.label },
-                        selected = state.hapticType.ordinal,
-                        onSelect = { viewModel.setHapticType(HapticType.entries[it]) }
-                    )
-                }
-            }
 
-            // ── Notifications ───────────────────────────────────────────────
-            item {
-                SettingsSection(title = "Notifications") {
-                    SettingsToggleRow(
-                        icon     = Icons.Rounded.Notifications,
-                        iconTint = Color(0xFFFF9F0A),
-                        label    = "Enable notifications",
-                        sublabel = "Reminders and budget alerts",
-                        checked  = state.notificationsEnabled,
-                        onToggle = viewModel::setNotifications
-                    )
-                }
-            }
+
 
             // ── AI ─────────────────────────────────────────────────────────
             item {

@@ -152,13 +152,14 @@ private fun InsightsHeader(
 private fun PeriodNavigator(
     state: InsightsUiState
 ) {
-    val nf = remember { 
+    val currency = LocalCurrency.current
+    val nf = remember(currency.showCents) { 
         NumberFormat.getNumberInstance().apply {
-            minimumFractionDigits = 2
-            maximumFractionDigits = 2
+            val decimals = if (currency.showCents) 2 else 0
+            minimumFractionDigits = decimals
+            maximumFractionDigits = decimals
         }
     }
-    val currency = LocalCurrency.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -203,10 +204,11 @@ private fun PeriodNavigator(
 private fun QuickSummaryCards(state: InsightsUiState) {
     val s = state.current
     val currency = LocalCurrency.current
-    val nf = remember { 
+    val nf = remember(currency.showCents) { 
         NumberFormat.getNumberInstance().apply {
-            minimumFractionDigits = 2
-            maximumFractionDigits = 2
+            val decimals = if (currency.showCents) 2 else 0
+            minimumFractionDigits = decimals
+            maximumFractionDigits = decimals
         }
     }
  
@@ -272,10 +274,11 @@ private fun PeriodSummaryCard(
 ) {
     val s = state.current
     val currency = LocalCurrency.current
-    val nf = remember { 
+    val nf = remember(currency.showCents) { 
         NumberFormat.getNumberInstance().apply {
-            minimumFractionDigits = 2
-            maximumFractionDigits = 2
+            val decimals = if (currency.showCents) 2 else 0
+            minimumFractionDigits = decimals
+            maximumFractionDigits = decimals
         }
     }
  

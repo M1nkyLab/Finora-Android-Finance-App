@@ -115,16 +115,18 @@ fun AnimatedAmountText(
     letterSpacing: androidx.compose.ui.unit.TextUnit = androidx.compose.ui.unit.TextUnit.Unspecified,
     animationDuration: Int = 400
 ) {
+    val currency = com.dime.app.util.LocalCurrency.current
     val animatedAmount by androidx.compose.animation.core.animateFloatAsState(
         targetValue = amount,
         animationSpec = androidx.compose.animation.core.tween(durationMillis = animationDuration),
         label = "animatedAmount"
     )
 
-    val numberFormat = remember { 
+    val numberFormat = remember(currency.showCents) { 
         java.text.NumberFormat.getNumberInstance().apply {
-            minimumFractionDigits = 2
-            maximumFractionDigits = 2
+            val decimals = if (currency.showCents) 2 else 0
+            minimumFractionDigits = decimals
+            maximumFractionDigits = decimals
         }
     }
     androidx.compose.material3.Text(
