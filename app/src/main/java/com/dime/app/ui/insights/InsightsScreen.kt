@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.*
+import androidx.compose.material.icons.rounded.Autorenew
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -775,15 +776,29 @@ private fun InsightsTransactionRow(
                 .background(if (tx.income) GreenInc else RedExp)
         )
 
-        Text(
-            text = tx.note.ifBlank { cat?.name ?: "Transaction" },
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = TextPrim,
+        Row(
             modifier = Modifier.weight(1f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = tx.note.ifBlank { cat?.name ?: "Transaction" },
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextPrim,
+                modifier = Modifier.weight(1f, fill = false),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (tx.onceRecurring) {
+                Icon(
+                    imageVector = Icons.Rounded.Autorenew,
+                    contentDescription = "Recurring",
+                    tint = AccentPurple,
+                    modifier = Modifier.size(13.dp)
+                )
+            }
+        }
 
         Text(
             text = (if (tx.income) "+" else "\u2212") + currency.format(tx.amount),

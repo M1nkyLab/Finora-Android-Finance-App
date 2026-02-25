@@ -32,6 +32,7 @@ import androidx.compose.material.icons.rounded.CalendarToday
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.Autorenew
 import java.text.NumberFormat
 import java.time.Instant
 import java.time.ZoneId
@@ -380,14 +381,28 @@ private fun TransactionRow(
         }
 
         Column(Modifier.weight(1f)) {
-            Text(
-                text = tx.note.ifBlank { cat?.name ?: "Transaction" },
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                color = TextPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = tx.note.ifBlank { cat?.name ?: "Transaction" },
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                if (tx.onceRecurring) {
+                    Icon(
+                        imageVector = Icons.Rounded.Autorenew,
+                        contentDescription = "Recurring",
+                        tint = AccentPurple,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
