@@ -41,13 +41,13 @@ import java.util.Locale
 import com.dime.app.util.LocalCurrency
 import kotlin.math.abs
 
-// ── Palette (Dark, low-exposure aesthetic) ─────────────────────────────────────
-private val BgDeep       = Color(0xFF0D0D0F)   // near-black canvas
-private val BgCard       = Color(0xFF19191E)   // card surface
-private val BgCardAlt    = Color(0xFF1F1F27)   // subtle variation
-private val AccentPurple = Color(0xFF9B6FFF)   // primary accent
+// ── Palette (Luxury / Premium OLED Fintech) ──────────────────────────────────────
+private val BgDeep       = Color(0xFF000000)   // true OLED black canvas
+private val BgCard       = Color(0xFF0F0F14)   // lifted card surface
+private val BgCardAlt    = Color(0xFF14141C)   // subtle variation
+private val AccentPurple = Color(0xFF9B6FFF)   // primary accent — lavender indigo
 private val AccentBlue   = Color(0xFF5B8FFF)   // secondary accent
-private val AccentGreen  = Color(0xFF3ECF72)   // income / positive
+private val AccentGreen  = Color(0xFF34D399)   // income / positive — mint sage green
 private val AccentRed    = Color(0xFFFF5C5C)   // expense / negative
 private val TextPrimary  = Color(0xFFF0F0F5)
 private val TextSub      = Color(0xFF7A7A8C)
@@ -290,16 +290,17 @@ private fun HeroKpiCard(
             ) {
                 Text(
                     text = (if (isPositive) "+" else "−") + " " + currency.code + " ",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextSub,
-                    modifier = Modifier.padding(top = 4.dp) // Subtle offset for visual alignment
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = AccentGreen.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(top = 6.dp),
+                    letterSpacing = 0.sp
                 )
                 com.dime.app.ui.components.AnimatedAmountText(
                     amount = abs(net).toFloat(),
                     fontSize = 48.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
+                    color = AccentGreen,    // Mint Sage Green — premium balance highlight
                     letterSpacing = (-1.5).sp
                 )
             }
@@ -365,13 +366,13 @@ private fun TransactionRow(
         modifier = Modifier
             .fillMaxWidth()
             .bounceClick(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 4.dp),
+            .padding(horizontal = 20.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // Emoji avatar
         Surface(
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(18.dp),  // More premium, rounder corners
             color = BgCard,
             modifier = Modifier.size(44.dp)
         ) {

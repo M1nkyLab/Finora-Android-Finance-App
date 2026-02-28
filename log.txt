@@ -1,0 +1,3 @@
+﻿a43e303 remove start day, calendar and haptics from the settings
+bd024ed add recurring logo in home
+7f9d83e update the calculation

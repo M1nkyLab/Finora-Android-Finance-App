@@ -1,0 +1,14 @@
+﻿app/proguard-rules.pro
+app/src/main/java/com/dime/app/data/ai/BrainDumpService.kt
+app/src/main/java/com/dime/app/data/local/DimeDatabase.kt
+app/src/main/java/com/dime/app/data/local/dao/BudgetDao.kt
+app/src/main/java/com/dime/app/data/local/dao/CategoryDao.kt
+app/src/main/java/com/dime/app/data/local/dao/TemplateDao.kt
+app/src/main/java/com/dime/app/data/local/dao/TransactionDao.kt
+app/src/main/java/com/dime/app/data/local/di/DatabaseModule.kt
+app/src/main/java/com/dime/app/ui/ai/BrainDumpSheet.kt
+app/src/main/java/com/dime/app/ui/ai/BrainDumpViewModel.kt
+log.txt
+modified.txt
+nul
+untracked.txt

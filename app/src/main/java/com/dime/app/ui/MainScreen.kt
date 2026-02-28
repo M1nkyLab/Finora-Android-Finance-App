@@ -1,7 +1,6 @@
 package com.dime.app.ui
 
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -23,10 +22,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -34,7 +31,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.dime.app.ui.components.bounceClick
 import androidx.navigation.compose.rememberNavController
-import com.dime.app.ui.ai.AiInputSheet
+import com.dime.app.ui.ai.BrainDumpSheet
 import com.dime.app.ui.budget.BudgetScreen
 import com.dime.app.ui.dashboard.DashboardScreen
 import com.dime.app.ui.insights.InsightsScreen
@@ -82,40 +79,31 @@ fun MainScreen(
     onAiInputOpened: () -> Unit = {}
 ) {
     val navController  = rememberNavController()
-    val sheetState     = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val aiSheetState   = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope          = rememberCoroutineScope()
 
-    // ID of transaction being edited; null = add mode
-    var showAiSheet       by remember { mutableStateOf(false) }
+    var showBrainDump  by remember { mutableStateOf(false) }
+    val brainDumpState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     LaunchedEffect(startOpenAiInput) {
         if (startOpenAiInput) {
-            showAiSheet = true
+            showBrainDump = true
             onAiInputOpened()
         }
     }
 
-    val openAiSheet: () -> Unit = {
-        showAiSheet = true
+    val openBrainDump: () -> Unit = {
+        showBrainDump = true
     }
 
 
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = {
-            DimeNavigationBar(
-                navController = navController,
-                tabs = tabs,
-                onAiClick = openAiSheet
-            )
-        }
-    ) { innerPadding ->
+    // Full-screen Box so the nav bar can float over the content
+    Box(modifier = Modifier.fillMaxSize()) {
+        // ── Main screen content (fills the entire screen) ────────────────────
         NavHost(
             navController    = navController,
             startDestination = Route.LOG,
-            modifier         = Modifier.padding(innerPadding),
+            modifier         = Modifier.fillMaxSize(),
         ) {
             composable(Route.LOG,
                 enterTransition  = { fadeIn(tween(200)) },
@@ -129,35 +117,49 @@ fun MainScreen(
             ) {
                 InsightsScreen()
             }
-            composable(Route.BUDGET, 
+            composable(Route.BUDGET,
                 enterTransition  = { fadeIn(tween(200)) },
                 exitTransition   = { fadeOut(tween(200)) }
             ) {
                 BudgetScreen()
             }
-            composable(Route.SETTINGS, 
+            composable(Route.SETTINGS,
                 enterTransition  = { fadeIn(tween(200)) },
                 exitTransition   = { fadeOut(tween(200)) }
             ) {
                 SettingsScreen()
             }
         }
+
+        // ── Floating nav bar overlaid at the bottom ───────────────────────────
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .navigationBarsPadding()  // Respect gesture/button bar inset
+        ) {
+            DimeNavigationBar(
+                navController = navController,
+                tabs          = tabs,
+                onAiClick     = openBrainDump
+            )
+        }
     }
 
 
-    // ── AI Input bottom sheet ──────────────────────────────────────────────────
-    if (showAiSheet) {
+    // ── Brain Dump bottom sheet ────────────────────────────────────────────────
+    if (showBrainDump) {
         ModalBottomSheet(
-            onDismissRequest  = { showAiSheet = false },
-            sheetState        = aiSheetState,
-            containerColor    = Color(0xFF0D0D0F),
-            dragHandle        = { Box(Modifier.padding(top = 8.dp).size(40.dp, 4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0xFF2A2A35))) },
+            onDismissRequest  = { showBrainDump = false },
+            sheetState        = brainDumpState,
+            containerColor    = Color(0xFF000000),  // True OLED black
+            dragHandle        = { Box(Modifier.padding(top = 8.dp).size(40.dp, 4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0xFF1A1A2E))) },  // lavender-tinted handle
             shape             = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
         ) {
-            AiInputSheet(
+            BrainDumpSheet(
                 onDismiss = {
-                    scope.launch { aiSheetState.hide() }.invokeOnCompletion {
-                        showAiSheet = false
+                    scope.launch { brainDumpState.hide() }.invokeOnCompletion {
+                        showBrainDump = false
                     }
                 }
             )
@@ -176,6 +178,7 @@ private fun DimeNavigationBar(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -183,13 +186,13 @@ private fun DimeNavigationBar(
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.65f),
+            color = Color(0xFF0D0D12).copy(alpha = 0.88f),  // Deep glass: dark-lavender translucent
             shape = RoundedCornerShape(50.dp),
             tonalElevation = 0.dp,
-            shadowElevation = 10.dp,
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+            shadowElevation = 12.dp,
+            border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),  // Subtle glass edge
             modifier = Modifier
-                .height(64.dp)
+                .height(68.dp)  // Slightly taller for premium feel
                 .fillMaxWidth()
         ) {
             Row(
@@ -207,9 +210,9 @@ private fun DimeNavigationBar(
                             val infiniteTransition = rememberInfiniteTransition(label = "pulse")
                             val pulseScale by infiniteTransition.animateFloat(
                                 initialValue = 1f,
-                                targetValue = 1.08f,
+                                targetValue = 1.06f,  // Subtler, more premium pulse
                                 animationSpec = infiniteRepeatable(
-                                    animation = tween(1200, easing = EaseInOut),
+                                    animation = tween(1400, easing = EaseInOut),
                                     repeatMode = RepeatMode.Reverse
                                 ),
                                 label = "pulse_scale"
@@ -217,7 +220,7 @@ private fun DimeNavigationBar(
 
                             Box(
                                 modifier = Modifier
-                                    .size(48.dp)
+                                    .size(52.dp)  // Larger central CTA for prominence
                                     .graphicsLayer {
                                         scaleX = pulseScale
                                         scaleY = pulseScale

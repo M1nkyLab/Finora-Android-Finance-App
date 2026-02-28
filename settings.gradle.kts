@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "Dime"
+rootProject.name = "Finora"
 include(":app")

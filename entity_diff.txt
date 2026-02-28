@@ -1,0 +1,20 @@
+﻿diff --git a/app/src/main/java/com/dime/app/data/local/entity/TransactionEntity.kt b/app/src/main/java/com/dime/app/data/local/entity/TransactionEntity.kt
+index 04b0c40..e6bf62c 100644
+--- a/app/src/main/java/com/dime/app/data/local/entity/TransactionEntity.kt
++++ b/app/src/main/java/com/dime/app/data/local/entity/TransactionEntity.kt
+@@ -1,11 +1,15 @@
+ package com.dime.app.data.local.entity
+ 
++import androidx.room.Entity
++import androidx.room.PrimaryKey
+ import kotlinx.serialization.SerialName
+ import kotlinx.serialization.Serializable
+ import java.util.UUID
+ 
+ @Serializable
++@Entity(tableName = "transactions")
+ data class TransactionEntity(
++    @PrimaryKey
+     val id: String = UUID.randomUUID().toString(),
+     val amount: Double = 0.0,
+     val date: Long = System.currentTimeMillis(),

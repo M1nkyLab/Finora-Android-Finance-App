@@ -10,8 +10,8 @@ import androidx.compose.ui.graphics.Color
 
 private val DarkColorPalette = darkColorScheme(
     primary = Color(0xFF9B6FFF),
-    background = Color(0xFF0D0D0F),
-    surface = Color(0xFF19191E),
+    background = Color(0xFF000000),  // True OLED black
+    surface = Color(0xFF0D0D12),     // Near-black, slight lavender undertone
     onSurface = Color.White,
     onBackground = Color.White,
     secondary = Color(0xFF7A7A8C)

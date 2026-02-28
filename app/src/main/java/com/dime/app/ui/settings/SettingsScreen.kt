@@ -145,7 +145,7 @@ fun SettingsScreen(
             // ── App info ────────────────────────────────────────────────────
             item {
                 Text(
-                    "Dime Android  •  v1.0",
+                    "Finora  •  v1.0",
                     color    = MaterialTheme.colorScheme.secondary,
                     fontSize = 12.sp,
                     textAlign = TextAlign.Center,

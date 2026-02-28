@@ -1,5 +1,6 @@
 package com.dime.app.ui.dashboard
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dime.app.data.local.relation.TransactionWithCategory
@@ -105,6 +106,7 @@ class DashboardViewModel @Inject constructor(
     }
 }
 
+@Immutable
 data class DailyGroup(
     val date: Long,
     val transactions: List<TransactionWithCategory>,
@@ -116,6 +118,7 @@ data class DailyGroup(
 sealed class DashboardUiState {
     object Loading : DashboardUiState()
 
+    @Immutable
     data class Ready(
         val period: TimePeriod,
         val totalSpent: Double,

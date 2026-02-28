@@ -219,46 +219,48 @@ private fun QuickSummaryCards(state: InsightsUiState) {
             .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Income Card
+        // Income Card — green border
         Column(
             modifier = Modifier
                 .weight(1f)
                 .clip(RoundedCornerShape(16.dp))
+                .border(1.dp, GreenInc.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
                 .background(BgCard)
                 .padding(vertical = 12.dp, horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("INCOME", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TextSub)
+            Text("INCOME", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = GreenInc.copy(alpha = 0.7f))
             Spacer(Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(currency.code + " ", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSub)
+                Text(currency.code + " ", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = GreenInc.copy(alpha = 0.6f))
                 com.dime.app.ui.components.AnimatedAmountText(
                     amount = s.totalIncome.toFloat(),
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrim
+                    color = GreenInc
                 )
             }
         }
 
-        // Expenses Card
+        // Expenses Card — red border
         Column(
             modifier = Modifier
                 .weight(1f)
                 .clip(RoundedCornerShape(16.dp))
+                .border(1.dp, RedExp.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
                 .background(BgCard)
                 .padding(vertical = 12.dp, horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("EXPENSES", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TextSub)
+            Text("EXPENSES", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = RedExp.copy(alpha = 0.7f))
             Spacer(Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(currency.code + " ", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSub)
+                Text(currency.code + " ", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = RedExp.copy(alpha = 0.6f))
                 com.dime.app.ui.components.AnimatedAmountText(
                     amount = s.totalSpent.toFloat(),
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrim
+                    color = RedExp
                 )
             }
         }
@@ -284,30 +286,34 @@ private fun PeriodSummaryCard(
  
 
     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+        // Date on top
+        Text(
+            text = state.periodLabel.uppercase(),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = TextSub,
+            letterSpacing = 0.3.sp
+        )
+        Spacer(Modifier.height(12.dp))
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top
         ) {
-            // Left: Date + Net Balance
+            // Left: Net Balance
             Column(horizontalAlignment = Alignment.Start) {
-                Text(
-                    text = state.periodLabel.uppercase(),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextSub,
-                    letterSpacing = 0.3.sp
-                )
-                Spacer(Modifier.height(8.dp))
                 Text(
                     text = "NET BALANCE",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextHint
+                    color = TextHint,
+                    letterSpacing = 0.3.sp
                 )
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = (if (s.netPositive) "+" else "−") + currency.code + " ",
+                        text = (if (s.netPositive) "+" else "−") + currency.code,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = TextHint,
@@ -323,19 +329,19 @@ private fun PeriodSummaryCard(
                 }
             }
 
-            // Right: Spent Label + Pace
+            // Right: Spent/Day
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     text = if (state.timeFrame == InsightsTimeFrame.YEAR) "AVG/MTH" else "SPENT/DAY",
-                    fontSize = 11.sp,
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextSub,
+                    color = TextHint,
                     letterSpacing = 0.3.sp
                 )
                 Spacer(Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = currency.code + " ",
+                        text = currency.code,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = TextHint,
@@ -345,7 +351,8 @@ private fun PeriodSummaryCard(
                         amount = s.avgPerDay.toFloat(),
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextPrim
+                        color = TextPrim,
+                        letterSpacing = (-1).sp
                     )
                 }
             }

@@ -7,13 +7,17 @@ import com.dime.app.data.local.entity.TransactionEntity
 import com.dime.app.data.local.relation.TransactionWithCategory
 import com.dime.app.data.repository.DimeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.*
 import javax.inject.Inject
 import kotlin.math.abs
 import kotlin.math.ceil
+
+import androidx.compose.runtime.Immutable
 
 // ── Time-frame type (mirrors iOS chartType 1/2/3) ──────────────────────────────
 enum class InsightsTimeFrame(val label: String) {
@@ -27,6 +31,7 @@ enum class InsightsTimeFrame(val label: String) {
 }
 
 // ── Bar entry for the spending chart ──────────────────────────────────────────
+@Immutable
 data class BarEntry(
     val label: String,          // "Mon", "15", "Jan" …
     val amount: Double,
@@ -34,6 +39,7 @@ data class BarEntry(
 )
 
 // ── Category slice for the horizontal breakdown ───────────────────────────────
+@Immutable
 data class CategorySlice(
     val category: CategoryEntity,
     val amount: Double,
@@ -41,6 +47,7 @@ data class CategorySlice(
 )
 
 // ── A self-contained summary for a period ────────────────────────────────────
+@Immutable
 data class PeriodSummary(
     val totalSpent: Double  = 0.0,
     val totalIncome: Double = 0.0,
@@ -69,6 +76,7 @@ data class InsightsUiState(
     val dailyTransactions: List<DailyInsightsGroup> = emptyList()
 )
 
+@Immutable
 data class DailyInsightsGroup(
     val date: Long,
     val transactions: List<TransactionWithCategory>,
@@ -139,50 +147,60 @@ class InsightsViewModel @Inject constructor(
         val end     = endOfPeriod(start, tf)
         val now     = System.currentTimeMillis()
 
-        val inPeriod = all.filter { it.date in start until minOf(end, now) }
-        val expenses = inPeriod.filter { !it.income }
-        val incomes  = inPeriod.filter { it.income }
+        // Heavy computation offloaded to Default dispatcher
+        viewModelScope.launch {
+            val newState = withContext(Dispatchers.Default) {
+                val inPeriod = all.filter { it.date in start until minOf(end, now) }
+                val expenses = inPeriod.filter { !it.income }
+                val incomes  = inPeriod.filter { it.income }
 
-        val totalSpent  = expenses.sumOf { it.amount }
-        val totalIncome = incomes.sumOf { it.amount }
-        val net         = totalIncome - totalSpent
+                val totalSpent  = expenses.sumOf { it.amount }
+                val totalIncome = incomes.sumOf { it.amount }
+                val net         = totalIncome - totalSpent
 
-        // Previous period for delta
-        val prevStart = shiftPeriod(start, tf, forward = false)
-        val prevEnd   = endOfPeriod(prevStart, tf)
-        val prevInPeriod = all.filter { it.date in prevStart until minOf(prevEnd, now) }
-        val prevSpent    = prevInPeriod.filter { !it.income }.sumOf { it.amount }
+                // Previous period for delta
+                val prevStart = shiftPeriod(start, tf, forward = false)
+                val prevEnd   = endOfPeriod(prevStart, tf)
+                val prevInPeriod = all.filter { it.date in prevStart until minOf(prevEnd, now) }
+                val prevSpent    = prevInPeriod.filter { !it.income }.sumOf { it.amount }
 
-        val daysInPeriod = when (tf) { InsightsTimeFrame.WEEK -> 7; InsightsTimeFrame.MONTH -> 30; InsightsTimeFrame.YEAR -> 365 }
-        
-        val elapsedDays = if (end > now && start <= now) {
-            val diffMs = now - start
-            val diffDays = (diffMs / 86_400_000L).toInt() + 1
-            diffDays.coerceIn(1, daysInPeriod)
-        } else {
-            daysInPeriod
-        }
-        
-        val avgPerDay = totalSpent / elapsedDays.toDouble()
+                val daysInPeriod = when (tf) { InsightsTimeFrame.WEEK -> 7; InsightsTimeFrame.MONTH -> 30; InsightsTimeFrame.YEAR -> 365 }
+                
+                val elapsedDays = if (end > now && start <= now) {
+                    val diffMs = now - start
+                    val diffDays = (diffMs / 86_400_000L).toInt() + 1
+                    diffDays.coerceIn(1, daysInPeriod)
+                } else {
+                    daysInPeriod
+                }
+                
+                val avgPerDay = totalSpent / elapsedDays.toDouble()
 
-        val bars = buildBars(all, start, end, tf, income)
-        val (expSlices, incSlices) = buildSlices(all, start, end)
+                val bars = buildBars(all, start, end, tf, income)
+                val (expSlices, incSlices) = buildSlices(all, start, end)
 
-        // Build daily transaction groups for the history section (excluding subscriptions)
-        val dailyGroups = buildDailyGroups(allWithCat, start, end)
+                // Build daily transaction groups for the history section (excluding subscriptions)
+                val dailyGroups = buildDailyGroups(allWithCat, start, end)
 
-        _uiState.update {
-            it.copy(
-                periodLabel   = buildPeriodLabel(start, tf),
-                current       = PeriodSummary(totalSpent, totalIncome, net, net >= 0, avgPerDay),
-                previous      = PeriodSummary(prevSpent),
-                bars          = bars,
-                expenseSlices = expSlices,
-                incomeSlices  = incSlices,
-                canGoForward  = start < startOfCurrentPeriod(tf),
-                isEmpty       = all.isEmpty(),
-                dailyTransactions = dailyGroups
-            )
+                InsightsUiState(
+                    timeFrame     = tf,
+                    periodLabel   = buildPeriodLabel(start, tf),
+                    current       = PeriodSummary(totalSpent, totalIncome, net, net >= 0, avgPerDay),
+                    previous      = PeriodSummary(prevSpent),
+                    bars          = bars,
+                    expenseSlices = expSlices,
+                    incomeSlices  = incSlices,
+                    canGoForward  = start < startOfCurrentPeriod(tf),
+                    isEmpty       = all.isEmpty(),
+                    dailyTransactions = dailyGroups,
+                    selectedBarIndex = _uiState.value.selectedBarIndex,
+                    selectedBarDate = _uiState.value.selectedBarDate,
+                    selectedBarAmount = _uiState.value.selectedBarAmount,
+                    showIncomeBar = _uiState.value.showIncomeBar,
+                    isIncomeFocus = _uiState.value.isIncomeFocus
+                )
+            }
+            _uiState.value = newState
         }
     }
 
