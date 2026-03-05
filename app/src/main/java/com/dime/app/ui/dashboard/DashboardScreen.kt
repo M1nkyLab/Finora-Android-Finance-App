@@ -49,17 +49,51 @@ import androidx.compose.material.icons.rounded.AccountBalance
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CheckCircle
 
-// ── Palette (Luxury / Premium OLED Fintech) ──────────────────────────────────────
-private val BgDeep       = Color(0xFF000000)   // true OLED black canvas
-private val BgCard       = Color(0xFF0F0F14)   // lifted card surface
-private val BgCardAlt    = Color(0xFF14141C)   // subtle variation
-private val AccentPurple = Color(0xFF9B6FFF)   // primary accent — lavender indigo
-private val AccentBlue   = Color(0xFF5B8FFF)   // secondary accent
-private val AccentGreen  = Color(0xFF34D399)   // income / positive — mint sage green
-private val AccentRed    = Color(0xFFFF5C5C)   // expense / negative
-private val TextPrimary  = Color(0xFFF0F0F5)
-private val TextSub      = Color(0xFF7A7A8C)
-private val Divider      = Color(0xFF2A2A35)
+import androidx.compose.foundation.isSystemInDarkTheme
+
+// ── Palette (resolved per-theme at runtime) ───────────────────────────────────
+// Dark: premium OLED fintech palette. Light: Material3 colour tokens.
+private data class DashColors(
+    val bgDeep: Color,
+    val bgCard: Color,
+    val bgCardAlt: Color,
+    val accentPurple: Color,
+    val accentBlue: Color,
+    val accentGreen: Color,
+    val accentRed: Color,
+    val textPrimary: Color,
+    val textSub: Color,
+    val divider: Color
+)
+
+@Composable
+private fun dashColors(): DashColors {
+    val dark = isSystemInDarkTheme()
+    val cs   = MaterialTheme.colorScheme
+    return if (dark) DashColors(
+        bgDeep       = Color(0xFF000000),
+        bgCard       = Color(0xFF0F0F14),
+        bgCardAlt    = Color(0xFF14141C),
+        accentPurple = Color(0xFF9B6FFF),
+        accentBlue   = Color(0xFF5B8FFF),
+        accentGreen  = Color(0xFF34D399),
+        accentRed    = Color(0xFFFF5C5C),
+        textPrimary  = Color(0xFFF0F0F5),
+        textSub      = Color(0xFF7A7A8C),
+        divider      = Color(0xFF2A2A35)
+    ) else DashColors(
+        bgDeep       = cs.background,
+        bgCard       = cs.surface,
+        bgCardAlt    = cs.surfaceVariant,
+        accentPurple = cs.primary,
+        accentBlue   = cs.secondary,
+        accentGreen  = Color(0xFF1B8A5A),
+        accentRed    = Color(0xFFD32F2F),
+        textPrimary  = cs.onBackground,
+        textSub      = cs.onSurfaceVariant,
+        divider      = cs.outlineVariant
+    )
+}
 
 
 // ── Screen ─────────────────────────────────────────────────────────────────────
@@ -72,18 +106,20 @@ fun DashboardScreen(
     val period by viewModel.period.collectAsStateWithLifecycle()
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val selectedAccId by viewModel.selectedAccountId.collectAsStateWithLifecycle()
+    val c = dashColors()
 
     val scope = rememberCoroutineScope()
     var showAccountSheet by remember { mutableStateOf(false) }
 
-    Surface(color = BgDeep, modifier = Modifier.fillMaxSize()) {
+    Surface(color = c.bgDeep, modifier = Modifier.fillMaxSize()) {
         when (val s = uiState) {
-            is DashboardUiState.Loading -> LoadingState()
-            is DashboardUiState.Ready -> ReadyContent(
+            is DashboardUiState.Loading -> LoadingState(c)
+            is DashboardUiState.Ready  -> ReadyContent(
                 state = s,
                 period = period,
                 accounts = accounts,
                 selectedAccountId = selectedAccId,
+                colors = c,
                 onPeriodChange = viewModel::selectPeriod,
                 onAccountClick = { showAccountSheet = true }
             )
@@ -94,6 +130,7 @@ fun DashboardScreen(
         AccountPickerSheet(
             accounts = accounts,
             selectedAccountId = selectedAccId,
+            colors = c,
             onSelectAccount = { id ->
                 viewModel.selectAccount(id)
                 showAccountSheet = false
@@ -110,12 +147,11 @@ fun DashboardScreen(
 // ── Loading skeleton ────────────────────────────────────────────────────────────
 
 @Composable
-private fun LoadingState() {
+private fun LoadingState(c: DashColors) {
     Column(
         modifier = Modifier.fillMaxSize().padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Hero card skeleton
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -123,16 +159,13 @@ private fun LoadingState() {
                 .clip(RoundedCornerShape(20.dp))
                 .shimmerEffect()
         )
-        // List items skeleton
         repeat(5) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).shimmerEffect()
-                )
+                Box(modifier = Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).shimmerEffect())
                 Column(Modifier.weight(1f)) {
                     Box(modifier = Modifier.height(16.dp).fillMaxWidth(0.7f).clip(RoundedCornerShape(4.dp)).shimmerEffect())
                     Spacer(Modifier.height(8.dp))
@@ -152,15 +185,16 @@ private fun ReadyContent(
     period: TimePeriod,
     accounts: List<AccountEntity>,
     selectedAccountId: String?,
+    colors: DashColors,
     onPeriodChange: (TimePeriod) -> Unit,
     onAccountClick: () -> Unit
 ) {
+    val c = colors
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 96.dp), // clear bottom nav bar
+        contentPadding = PaddingValues(bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // ── Hero KPI card (net balance) ────────────────────────────────────────
         item {
             HeroKpiCard(
                 net = state.net,
@@ -169,6 +203,7 @@ private fun ReadyContent(
                 period = period,
                 accounts = accounts,
                 selectedAccId = selectedAccountId,
+                colors = c,
                 onPeriodClick = {
                     val entries = TimePeriod.entries
                     val nextIndex = (entries.indexOf(period) + 1) % entries.size
@@ -178,8 +213,6 @@ private fun ReadyContent(
             )
         }
 
-
-        // ── Upcoming Section (Predictive) ──────────────────────────────────
         if (state.upcomingTransactions.isNotEmpty()) {
             item {
                 Column(modifier = Modifier.padding(horizontal = 20.dp).padding(top = 16.dp)) {
@@ -187,34 +220,29 @@ private fun ReadyContent(
                         text = "UPCOMING",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextSub,
+                        color = c.textSub,
                         letterSpacing = 1.sp
                     )
                     Spacer(Modifier.height(4.dp))
-                    HorizontalDivider(thickness = 0.5.dp, color = Divider)
+                    HorizontalDivider(thickness = 0.5.dp, color = c.divider)
                 }
             }
             items(state.upcomingTransactions, key = { "up_" + it.template.id }) { item ->
-                UpcomingRow(item)
+                UpcomingRow(item, c)
             }
         }
 
-        // ── Chronological Feed (Grouped by Date) ──────────────────────────────
         if (state.dailyTransactions.isNotEmpty()) {
             state.dailyTransactions.forEach { group ->
                 item(key = "day_${group.date}") {
-                    DayHeader(date = group.date, net = group.dailyNet)
+                    DayHeader(date = group.date, net = group.dailyNet, c = c)
                 }
                 items(group.transactions, key = { it.transaction.id }) { item ->
-                    TransactionRow(
-                        item = item,
-                        onClick = { },
-                        showDate = false // Date shown in header
-                    )
+                    TransactionRow(item = item, onClick = { }, showDate = false, c = c)
                 }
             }
         } else if (state.upcomingTransactions.isEmpty()) {
-            item { EmptyState() }
+            item { EmptyState(c) }
         }
     }
 }
@@ -233,12 +261,12 @@ private fun HeroKpiCard(
     period: TimePeriod,
     accounts: List<AccountEntity>,
     selectedAccId: String?,
+    colors: DashColors,
     onPeriodClick: () -> Unit,
     onAccountClick: () -> Unit
 ) {
-    val isPositive = net >= 0
-    val netColor = if (isPositive) AccentGreen else AccentRed
-
+    val c = colors
+    val isPositive  = net >= 0
     val accountLabel = if (selectedAccId == null) "All Accounts"
                        else accounts.find { it.id == selectedAccId }?.accountName ?: "All Accounts"
 
@@ -259,11 +287,10 @@ private fun HeroKpiCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Account Button
                 Surface(
                     onClick = onAccountClick,
                     shape = RoundedCornerShape(100.dp),
-                    border = BorderStroke(1.dp, Divider),
+                    border = BorderStroke(1.dp, c.divider),
                     color = Color.Transparent
                 ) {
                     Row(
@@ -274,31 +301,29 @@ private fun HeroKpiCard(
                             text = accountLabel.uppercase(),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = TextSub,
+                            color = c.textSub,
                             letterSpacing = 0.5.sp
                         )
                         Spacer(Modifier.width(2.dp))
                         Icon(
                             imageVector = Icons.Rounded.KeyboardArrowDown,
                             contentDescription = "Switch account",
-                            tint = TextSub,
+                            tint = c.textSub,
                             modifier = Modifier.size(14.dp)
                         )
                     }
                 }
-
-                // Period Button
                 Surface(
                     onClick = onPeriodClick,
                     shape = RoundedCornerShape(100.dp),
-                    border = BorderStroke(1.dp, Divider),
+                    border = BorderStroke(1.dp, c.divider),
                     color = Color.Transparent
                 ) {
                     Text(
                         text = period.label.uppercase(),
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextSub,
+                        color = c.textSub,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         letterSpacing = 0.5.sp
                     )
@@ -306,25 +331,24 @@ private fun HeroKpiCard(
             }
 
             val currency = LocalCurrency.current
-            
             Row(
                 verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.Center,
                 modifier = Modifier.padding(top = 8.dp)
             ) {
                 Text(
-                    text = (if (isPositive) "+" else "−") + " " + currency.code + " ",
+                    text = (if (isPositive) "+" else "\u2212") + " " + currency.code + " ",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = AccentGreen.copy(alpha = 0.7f),
+                    color = c.accentGreen.copy(alpha = 0.7f),
                     modifier = Modifier.padding(top = 6.dp),
                     letterSpacing = 0.sp
                 )
                 com.dime.app.ui.components.AnimatedAmountText(
-                    amount = abs(net).toFloat(),
+                    amount = kotlin.math.abs(net).toFloat(),
                     fontSize = 48.sp,
                     fontWeight = FontWeight.Bold,
-                    color = AccentGreen,    // Mint Sage Green — premium balance highlight
+                    color = c.accentGreen,
                     letterSpacing = (-1.5).sp
                 )
             }
@@ -336,36 +360,18 @@ private fun HeroKpiCard(
                 horizontalArrangement = Arrangement.Center
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "+",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AccentGreen
-                    )
+                    Text("+", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = c.accentGreen)
                     com.dime.app.ui.components.AnimatedAmountText(
-                        amount = income.toFloat(),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AccentGreen
+                        amount = income.toFloat(), fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold, color = c.accentGreen
                     )
                 }
-                Text(
-                    text = "  |  ",
-                    fontSize = 13.sp,
-                    color = Divider
-                )
+                Text("  |  ", fontSize = 13.sp, color = c.divider)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "−",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AccentRed
-                    )
+                    Text("\u2212", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = c.accentRed)
                     com.dime.app.ui.components.AnimatedAmountText(
-                        amount = spent.toFloat(),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AccentRed
+                        amount = spent.toFloat(), fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold, color = c.accentRed
                     )
                 }
             }
@@ -381,9 +387,10 @@ private fun HeroKpiCard(
 private fun TransactionRow(
     item: com.dime.app.data.local.relation.TransactionWithCategory,
     onClick: () -> Unit,
-    showDate: Boolean = true
+    showDate: Boolean = true,
+    c: DashColors
 ) {
-    val tx = item.transaction
+    val tx  = item.transaction
     val cat = item.category
 
     Row(
@@ -394,10 +401,9 @@ private fun TransactionRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Emoji avatar
         Surface(
-            shape = RoundedCornerShape(18.dp),  // More premium, rounder corners
-            color = BgCard,
+            shape = RoundedCornerShape(18.dp),
+            color = c.bgCard,
             modifier = Modifier.size(44.dp)
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
@@ -414,7 +420,7 @@ private fun TransactionRow(
                     text = tx.note.ifBlank { cat?.name ?: "Transaction" },
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
-                    color = TextPrimary,
+                    color = c.textPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
@@ -423,7 +429,7 @@ private fun TransactionRow(
                     Icon(
                         imageVector = Icons.Rounded.Autorenew,
                         contentDescription = "Recurring",
-                        tint = AccentPurple,
+                        tint = c.accentPurple,
                         modifier = Modifier.size(14.dp)
                     )
                 }
@@ -432,32 +438,20 @@ private fun TransactionRow(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(
-                    text = formatTime(tx.date),
-                    fontSize = 12.sp,
-                    color = TextSub
-                )
+                Text(text = formatTime(tx.date), fontSize = 12.sp, color = c.textSub)
                 if (showDate) {
-                    Text(
-                        text = "·",
-                        fontSize = 12.sp,
-                        color = TextSub.copy(alpha = 0.5f)
-                    )
-                    Text(
-                        text = formatDate(tx.date),
-                        fontSize = 12.sp,
-                        color = TextSub
-                    )
+                    Text("·", fontSize = 12.sp, color = c.textSub.copy(alpha = 0.5f))
+                    Text(text = formatDate(tx.date), fontSize = 12.sp, color = c.textSub)
                 }
             }
         }
 
         val currency = LocalCurrency.current
         Text(
-            text = (if (tx.income) "+" else "−") + currency.format(tx.amount),
+            text = (if (tx.income) "+" else "\u2212") + currency.format(tx.amount),
             fontSize = 15.sp,
             fontWeight = FontWeight.SemiBold,
-            color = if (tx.income) AccentGreen else AccentRed
+            color = if (tx.income) c.accentGreen else c.accentRed
         )
     }
 }
@@ -465,7 +459,7 @@ private fun TransactionRow(
 // ── Empty state ────────────────────────────────────────────────────────────────
 
 @Composable
-private fun EmptyState() {
+private fun EmptyState(c: DashColors) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -473,9 +467,9 @@ private fun EmptyState() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text("✨", fontSize = 36.sp)
-        Text("No logs yet", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-        Text("Tap the AI sparkle to log your first entry", fontSize = 14.sp, color = TextSub)
+        Text("💸", fontSize = 36.sp)
+        Text("No transactions yet", fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = c.textPrimary)
+        Text("Tap + below to log your first entry", fontSize = 14.sp, color = c.textSub)
     }
 }
 
@@ -487,7 +481,7 @@ private fun SectionHeader(title: String) {
         text = title,
         fontSize = 18.sp,
         fontWeight = FontWeight.Bold,
-        color = TextPrimary,
+        color = MaterialTheme.colorScheme.onBackground,
         modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
     )
 }
@@ -498,7 +492,7 @@ private fun SectionLabel(text: String) {
         text = text,
         fontSize = 13.sp,
         fontWeight = FontWeight.Medium,
-        color = TextSub,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         letterSpacing = 0.5.sp
     )
 }
@@ -517,9 +511,9 @@ private fun formatTime(epochMs: Long): String =
 // ── Smart Section Components ──────────────────────────────────────────────────
 
 @Composable
-private fun UpcomingRow(item: com.dime.app.data.local.relation.TemplateWithCategory) {
+private fun UpcomingRow(item: com.dime.app.data.local.relation.TemplateWithCategory, c: DashColors) {
     val temp = item.template
-    val cat = item.category
+    val cat  = item.category
 
     Row(
         modifier = Modifier
@@ -528,12 +522,11 @@ private fun UpcomingRow(item: com.dime.app.data.local.relation.TemplateWithCateg
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Subtle indicator for "Upcoming"
         Box(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(cat?.colour?.let { Color(android.graphics.Color.parseColor(it)) }?.copy(alpha = 0.15f) ?: BgCard),
+                .background(cat?.colour?.let { Color(android.graphics.Color.parseColor(it)) }?.copy(alpha = 0.15f) ?: c.bgCard),
             contentAlignment = Alignment.Center
         ) {
             Text(cat?.emoji ?: "📑", fontSize = 18.sp)
@@ -544,31 +537,27 @@ private fun UpcomingRow(item: com.dime.app.data.local.relation.TemplateWithCateg
                 text = temp.note.ifBlank { cat?.name ?: "Recurring" },
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = TextPrimary.copy(alpha = 0.7f)
+                color = c.textPrimary.copy(alpha = 0.7f)
             )
-            Text(
-                text = "Scheduled Subscription",
-                fontSize = 12.sp,
-                color = AccentPurple
-            )
+            Text(text = "Scheduled Subscription", fontSize = 12.sp, color = c.accentPurple)
         }
 
         val currency = LocalCurrency.current
         Text(
-            text = (if (temp.income) "+" else "−") + currency.format(temp.amount),
+            text = (if (temp.income) "+" else "\u2212") + currency.format(temp.amount),
             fontSize = 15.sp,
             fontWeight = FontWeight.SemiBold,
-            color = if (temp.income) AccentGreen else AccentRed
+            color = if (temp.income) c.accentGreen else c.accentRed
         )
     }
 }
 
 @Composable
-private fun DayHeader(date: Long, net: Double) {
+private fun DayHeader(date: Long, net: Double, c: DashColors) {
     val currency = LocalCurrency.current
     val dt = Instant.ofEpochMilli(date).atZone(ZoneId.systemDefault()).toLocalDate()
     val dayLabel = dt.format(DateTimeFormatter.ofPattern("EEE, d MMM", Locale.ENGLISH)).uppercase()
-    
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -580,22 +569,15 @@ private fun DayHeader(date: Long, net: Double) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Text(text = dayLabel, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                color = c.textSub, letterSpacing = 1.sp)
             Text(
-                text = dayLabel,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextSub,
-                letterSpacing = 1.sp
-            )
-            Text(
-                text = (if (net >= 0) "+" else "−") + currency.format(abs(net)),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextSub
+                text = (if (net >= 0) "+" else "\u2212") + currency.format(kotlin.math.abs(net)),
+                fontSize = 11.sp, fontWeight = FontWeight.Bold, color = c.textSub
             )
         }
         Spacer(Modifier.height(4.dp))
-        HorizontalDivider(thickness = 0.5.dp, color = Divider)
+        HorizontalDivider(thickness = 0.5.dp, color = c.divider)
     }
 }
 
@@ -606,19 +588,21 @@ private fun DayHeader(date: Long, net: Double) {
 private fun AccountPickerSheet(
     accounts: List<AccountEntity>,
     selectedAccountId: String?,
+    colors: DashColors,
     onSelectAccount: (String?) -> Unit,
     onAddAccount: (String, Double) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val c = colors
     val currency = LocalCurrency.current
-    var isAddingNew by remember { mutableStateOf(false) }
-    var newName by remember { mutableStateOf("") }
-    var newBalance by remember { mutableStateOf("") }
+    var isAddingNew  by remember { mutableStateOf(false) }
+    var newName      by remember { mutableStateOf("") }
+    var newBalance   by remember { mutableStateOf("") }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = BgCard,
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Divider) }
+        containerColor = c.bgCard,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = c.divider) }
     ) {
         Column(
             modifier = Modifier
@@ -630,7 +614,7 @@ private fun AccountPickerSheet(
                 text = "Select Data Source",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary,
+                color = c.textPrimary,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
@@ -638,13 +622,13 @@ private fun AccountPickerSheet(
                 modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // "All Accounts" aggregate option
                 item {
                     AccountItem(
                         name = "All Accounts",
                         balanceLabel = "Aggregate View",
                         icon = Icons.Rounded.AccountBalance,
                         isSelected = selectedAccountId == null,
+                        colors = c,
                         onClick = { onSelectAccount(null) }
                     )
                 }
@@ -655,11 +639,11 @@ private fun AccountPickerSheet(
                         balanceLabel = "${currency.code} ${currency.format(acc.startingBalance)}",
                         icon = Icons.Rounded.AccountBalance,
                         isSelected = selectedAccountId == acc.id,
+                        colors = c,
                         onClick = { onSelectAccount(acc.id) }
                     )
                 }
 
-                // Add Account form / button
                 item {
                     Spacer(Modifier.height(8.dp))
                     if (isAddingNew) {
@@ -667,38 +651,38 @@ private fun AccountPickerSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(16.dp))
-                                .background(BgCardAlt)
-                                .border(1.dp, Divider, RoundedCornerShape(16.dp))
+                                .background(c.bgCardAlt)
+                                .border(1.dp, c.divider, RoundedCornerShape(16.dp))
                                 .padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text("New Account", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            Text("New Account", color = c.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                             OutlinedTextField(
                                 value = newName,
                                 onValueChange = { newName = it },
-                                label = { Text("Account Name", color = TextSub) },
+                                label = { Text("Account Name", color = c.textSub) },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = TextPrimary,
-                                    unfocusedTextColor = TextPrimary,
-                                    focusedBorderColor = AccentGreen,
-                                    unfocusedBorderColor = Divider
+                                    focusedTextColor = c.textPrimary,
+                                    unfocusedTextColor = c.textPrimary,
+                                    focusedBorderColor = c.accentGreen,
+                                    unfocusedBorderColor = c.divider
                                 ),
                                 keyboardOptions = KeyboardOptions(capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Words)
                             )
                             OutlinedTextField(
                                 value = newBalance,
                                 onValueChange = { newBalance = it },
-                                label = { Text("Starting Balance", color = TextSub) },
+                                label = { Text("Starting Balance", color = c.textSub) },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = TextPrimary,
-                                    unfocusedTextColor = TextPrimary,
-                                    focusedBorderColor = AccentGreen,
-                                    unfocusedBorderColor = Divider
+                                    focusedTextColor = c.textPrimary,
+                                    unfocusedTextColor = c.textPrimary,
+                                    focusedBorderColor = c.accentGreen,
+                                    unfocusedBorderColor = c.divider
                                 )
                             )
                             Row(
@@ -707,7 +691,7 @@ private fun AccountPickerSheet(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 TextButton(onClick = { isAddingNew = false }) {
-                                    Text("Cancel", color = TextSub)
+                                    Text("Cancel", color = c.textSub)
                                 }
                                 Button(
                                     onClick = {
@@ -716,9 +700,9 @@ private fun AccountPickerSheet(
                                             onAddAccount(newName, bal)
                                         }
                                     },
-                                    colors = ButtonDefaults.buttonColors(containerColor = AccentGreen)
+                                    colors = ButtonDefaults.buttonColors(containerColor = c.accentGreen)
                                 ) {
-                                    Text("Save", color = BgDeep, fontWeight = FontWeight.Bold)
+                                    Text("Save", color = c.bgDeep, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -728,14 +712,14 @@ private fun AccountPickerSheet(
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(16.dp))
                                 .clickable { isAddingNew = true }
-                                .border(1.dp, Divider, RoundedCornerShape(16.dp))
+                                .border(1.dp, c.divider, RoundedCornerShape(16.dp))
                                 .padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center
                         ) {
-                            Icon(Icons.Rounded.Add, contentDescription = "Add", tint = TextSub, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Rounded.Add, contentDescription = "Add", tint = c.textSub, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Add Account", color = TextSub, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                            Text("Add Account", color = c.textSub, fontSize = 15.sp, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
@@ -750,17 +734,19 @@ private fun AccountItem(
     balanceLabel: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     isSelected: Boolean,
+    colors: DashColors,
     onClick: () -> Unit
 ) {
+    val c = colors
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(if (isSelected) AccentGreen.copy(alpha = 0.1f) else BgCardAlt)
+            .background(if (isSelected) c.accentGreen.copy(alpha = 0.1f) else c.bgCardAlt)
             .clickable(onClick = onClick)
             .border(
                 width = 1.dp,
-                color = if (isSelected) AccentGreen.copy(alpha = 0.3f) else Color.Transparent,
+                color = if (isSelected) c.accentGreen.copy(alpha = 0.3f) else Color.Transparent,
                 shape = RoundedCornerShape(16.dp)
             )
             .padding(16.dp),
@@ -770,10 +756,12 @@ private fun AccountItem(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(if (isSelected) AccentGreen.copy(alpha = 0.2f) else BgDeep),
+                .background(if (isSelected) c.accentGreen.copy(alpha = 0.2f) else c.bgDeep),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = if (isSelected) AccentGreen else TextSub, modifier = Modifier.size(20.dp))
+            Icon(icon, contentDescription = null,
+                tint = if (isSelected) c.accentGreen else c.textSub,
+                modifier = Modifier.size(20.dp))
         }
         Spacer(Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -781,16 +769,17 @@ private fun AccountItem(
                 text = name,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = if (isSelected) AccentGreen else TextPrimary
+                color = if (isSelected) c.accentGreen else c.textPrimary
             )
             Text(
                 text = balanceLabel,
                 fontSize = 13.sp,
-                color = if (isSelected) AccentGreen.copy(alpha = 0.8f) else TextSub
+                color = if (isSelected) c.accentGreen.copy(alpha = 0.8f) else c.textSub
             )
         }
         if (isSelected) {
-            Icon(Icons.Rounded.CheckCircle, contentDescription = "Selected", tint = AccentGreen, modifier = Modifier.size(24.dp))
+            Icon(Icons.Rounded.CheckCircle, contentDescription = "Selected",
+                tint = c.accentGreen, modifier = Modifier.size(24.dp))
         }
     }
 }

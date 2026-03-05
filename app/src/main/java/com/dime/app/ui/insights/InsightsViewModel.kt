@@ -8,6 +8,7 @@ import com.dime.app.data.local.relation.TransactionWithCategory
 import com.dime.app.data.repository.DimeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -94,6 +95,9 @@ class InsightsViewModel @Inject constructor(
     // Reference date = start of currently-displayed period
     private var periodStart: Long = startOfCurrentPeriod(InsightsTimeFrame.WEEK)
 
+    // Kept so cycleTimeFrame() can cancel the old collector before starting a new one
+    private var refreshJob: Job? = null
+
     init {
         refresh()
     }
@@ -130,13 +134,13 @@ class InsightsViewModel @Inject constructor(
     // ── Data loading ───────────────────────────────────────────────────────────
 
     private fun refresh() {
-        viewModelScope.launch {
-            combine(
-                repo.getAllTransactionEntities(),
-                repo.allTransactions()
-            ) { rawAll, withCatAll ->
-                computeState(rawAll, withCatAll)
-            }.collect {}
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
+            repo.allTransactions()
+                .collectLatest { allWithCat ->
+                    val rawAll = allWithCat.map { it.transaction }
+                    computeState(rawAll, allWithCat)
+                }
         }
     }
 
@@ -177,7 +181,7 @@ class InsightsViewModel @Inject constructor(
                 val avgPerDay = totalSpent / elapsedDays.toDouble()
 
                 val bars = buildBars(all, start, end, tf, income)
-                val (expSlices, incSlices) = buildSlices(all, start, end)
+                val (expSlices, incSlices) = buildSlices(all, allWithCat, start, end)
 
                 // Build daily transaction groups for the history section (excluding subscriptions)
                 val dailyGroups = buildDailyGroups(allWithCat, start, end)
@@ -293,23 +297,24 @@ class InsightsViewModel @Inject constructor(
 
     private fun buildSlices(
         all: List<TransactionEntity>,
+        allWithCat: List<TransactionWithCategory>,
         start: Long, end: Long
     ): Pair<List<CategorySlice>, List<CategorySlice>> {
         val now      = System.currentTimeMillis()
-        val inPeriod = all.filter { it.date in start until minOf(end, now) }
+        val inPeriod = allWithCat.filter { it.transaction.date in start until minOf(end, now) }
 
         fun slices(income: Boolean): List<CategorySlice> {
-            val subset = inPeriod.filter { it.income == income }
-            val total  = subset.sumOf { it.amount }.takeIf { it > 0 } ?: 1.0
+            val subset = inPeriod.filter { it.transaction.income == income }
+            val total  = subset.sumOf { it.transaction.amount }.takeIf { it > 0 } ?: 1.0
             return subset
-                .groupBy { it.categoryId }
-                .map { (catId, txns) ->
-                    val amt     = txns.sumOf { it.amount }
-                    val catName = catId ?: "Uncategorised"
-                    // We don't have the full CategoryEntity here — build a dummy one for display.
-                    // The real name/emoji will be resolved by the UI via a join query; this is simplified.
+                .groupBy { it.transaction.categoryId }
+                .map { (_, txns) ->
+                    val amt      = txns.sumOf { it.transaction.amount }
+                    // Use the real joined CategoryEntity; fall back to a placeholder if null
+                    val catEntity = txns.firstOrNull()?.category
+                        ?: CategoryEntity(id = "?", name = "Uncategorised", income = income)
                     CategorySlice(
-                        category = CategoryEntity(id = catName, name = catName, income = income),
+                        category = catEntity,
                         amount   = amt,
                         percent  = amt / total
                     )

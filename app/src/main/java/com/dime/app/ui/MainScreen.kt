@@ -32,11 +32,9 @@ import androidx.navigation.compose.rememberNavController
 import com.dime.app.ui.addtransaction.AddTransactionSheet
 import com.dime.app.ui.budget.BudgetScreen
 import com.dime.app.ui.dashboard.DashboardScreen
-import com.dime.app.ui.dashboard.DashboardViewModel
 import com.dime.app.ui.insights.InsightsScreen
 import com.dime.app.ui.settings.SettingsScreen
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 
 // ── Route constants ─────────────────────────────────────────────────────────────
@@ -78,11 +76,6 @@ fun MainScreen(
     val navController  = rememberNavController()
     val scope          = rememberCoroutineScope()
 
-    // Hoist DashboardViewModel here so AddTransactionSheet can share account state
-    val dashVm: DashboardViewModel = hiltViewModel()
-    val accounts       by dashVm.accounts.collectAsStateWithLifecycle()
-    val selectedAccId  by dashVm.selectedAccountId.collectAsStateWithLifecycle()
-
     var showAddTransaction by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -109,8 +102,7 @@ fun MainScreen(
                 enterTransition  = { fadeIn(tween(200)) },
                 exitTransition   = { fadeOut(tween(200)) }
             ) {
-                // Pass the same hoisted ViewModel so DashboardScreen shares state
-                DashboardScreen(viewModel = dashVm)
+                DashboardScreen()
             }
             composable(Route.INSIGHTS,
                 enterTransition  = { fadeIn(tween(200)) },
@@ -162,9 +154,7 @@ fun MainScreen(
                     scope.launch { sheetState.hide() }.invokeOnCompletion {
                         showAddTransaction = false
                     }
-                },
-                accounts          = accounts,
-                selectedAccountId = selectedAccId
+                }
             )
         }
     }
@@ -253,8 +243,8 @@ private fun DimeNavigationBar(
                             Icon(
                                 imageVector = tab.icon,
                                 contentDescription = tab.label,
-                                tint = if (selected) MaterialTheme.colorScheme.primary 
-                                       else MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
+                                tint = if (selected) MaterialTheme.colorScheme.onPrimary
+                                       else MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.40f),
                                 modifier = Modifier.size(26.dp)
                             )
                         }

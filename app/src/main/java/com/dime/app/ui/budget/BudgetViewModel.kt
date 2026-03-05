@@ -10,8 +10,10 @@ import com.dime.app.data.repository.DimeRepository
 import com.dime.app.domain.model.TimePeriod
 import com.dime.app.domain.model.toDateRange
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
@@ -84,7 +86,7 @@ class BudgetViewModel @Inject constructor(
     // ── Observe all live data ───────────────────────────────────────────────────
 
     private fun observeData() {
-        // Combine budgets, main-budget, expense categories, and all transactions
+        // collectLatest cancels any in-flight rebuildState when new data arrives
         viewModelScope.launch {
             combine(
                 repo.budgets(),
@@ -92,83 +94,78 @@ class BudgetViewModel @Inject constructor(
                 repo.categories(income = false)
             ) { categoryBudgets, mainBudget, categories ->
                 Triple(categoryBudgets, mainBudget, categories)
-            }.collect { (categoryBudgets, mainBudget, categories) ->
+            }.collectLatest { (categoryBudgets, mainBudget, categories) ->
                 rebuildState(categoryBudgets, mainBudget, categories)
             }
         }
     }
 
-    private fun rebuildState(
+    private suspend fun rebuildState(
         budgetRows: List<BudgetWithCategory>,
         mainBudget: MainBudgetEntity?,
         expenseCategories: List<CategoryEntity>
     ) {
-        viewModelScope.launch {
-            val now = System.currentTimeMillis()
+        val monthlyPeriod = TimePeriod.MONTH
 
-            // Compute spent amounts per category and overall for the current period
-            val monthlyPeriod = TimePeriod.MONTH
+        // Fetch spend data on IO thread, then update state on Main
+        val (spendByCategory, overallSpent) = withContext(Dispatchers.IO) {
+            val spend = repo.spendByCategory(monthlyPeriod).associate { it.categoryId to it.total }
+            val total = repo.totalSpent(monthlyPeriod)
+            spend to total
+        }
 
-            // Spending by category for current month (expense only)
-            val spendByCategory: Map<String?, Double> = repo.spendByCategory(monthlyPeriod)
-                .associate { it.categoryId to it.total }
+        // ── Main (overall) budget ──────────────────────────────────────────────
+        val overallItem = mainBudget?.let { mb ->
+            val timeFrame = BudgetTimeFrame.fromRoomType(mb.type)
+            val budgeted  = mb.amount
+            val progress  = if (budgeted > 0) (overallSpent / budgeted).toFloat().coerceIn(0f, 1f) else 0f
+            BudgetDisplayItem(
+                id           = mb.id,
+                amount       = budgeted,
+                spent        = overallSpent,
+                progress     = progress,
+                isOverBudget = overallSpent > budgeted,
+                showGreen    = mb.showGreen,
+                timeFrame    = timeFrame,
+                category     = null,
+                entity       = null,
+                mainEntity   = mb
+            )
+        }
 
-            // Overall expense total for current month
-            val overallSpent = repo.totalSpent(monthlyPeriod)
+        // ── Category budgets ───────────────────────────────────────────────────
+        val catItems = budgetRows.map { bwc ->
+            val timeFrame = BudgetTimeFrame.fromRoomType(bwc.budget.type)
+            val budgeted  = bwc.budget.amount
+            val spent     = spendByCategory[bwc.budget.categoryId] ?: 0.0
+            val progress  = if (budgeted > 0) (spent / budgeted).toFloat().coerceIn(0f, 1f) else 0f
+            BudgetDisplayItem(
+                id           = bwc.budget.id,
+                amount       = budgeted,
+                spent        = spent,
+                progress     = progress,
+                isOverBudget = spent > budgeted,
+                showGreen    = bwc.budget.showGreen,
+                timeFrame    = timeFrame,
+                category     = bwc.category,
+                entity       = bwc.budget,
+                mainEntity   = null
+            )
+        }
 
-            // ── Main (overall) budget ──────────────────────────────────────────
-            val overallItem = mainBudget?.let { mb ->
-                val timeFrame = BudgetTimeFrame.fromRoomType(mb.type)
-                val budgeted = mb.amount
-                val progress = if (budgeted > 0) (overallSpent / budgeted).toFloat().coerceIn(0f, 2f) else 0f
-                BudgetDisplayItem(
-                    id            = mb.id,
-                    amount        = budgeted,
-                    spent         = overallSpent,
-                    progress      = progress.coerceIn(0f, 1f),
-                    isOverBudget  = overallSpent > budgeted,
-                    showGreen     = mb.showGreen,
-                    timeFrame     = timeFrame,
-                    category      = null,
-                    entity        = null,
-                    mainEntity    = mb
-                )
-            }
+        val totalBudgeted = catItems.sumOf { it.amount } + (mainBudget?.amount ?: 0.0)
+        val isEmpty = overallItem == null && catItems.isEmpty()
 
-            // ── Category budgets ───────────────────────────────────────────────
-            val catItems = budgetRows.map { bwc ->
-                val timeFrame = BudgetTimeFrame.fromRoomType(bwc.budget.type)
-                val budgeted  = bwc.budget.amount
-                val spent     = spendByCategory[bwc.budget.categoryId] ?: 0.0
-                val progress  = if (budgeted > 0) (spent / budgeted).toFloat().coerceIn(0f, 1f) else 0f
-                BudgetDisplayItem(
-                    id            = bwc.budget.id,
-                    amount        = budgeted,
-                    spent         = spent,
-                    progress      = progress,
-                    isOverBudget  = spent > budgeted,
-                    showGreen     = bwc.budget.showGreen,
-                    timeFrame     = timeFrame,
-                    category      = bwc.category,
-                    entity        = bwc.budget,
-                    mainEntity    = null
-                )
-            }
-
-            val totalBudgeted = catItems.sumOf { it.amount } + (mainBudget?.amount ?: 0.0)
-            val isEmpty = overallItem == null && catItems.isEmpty()
-
-            _uiState.update {
-                it.copy(
-                    overallBudget     = overallItem,
-                    categoryBudgets   = catItems,
-                    totalSpent        = overallSpent,
-                    totalBudgeted     = totalBudgeted,
-                    overallProgress   = overallItem?.progress ?: 0f,
-                    isEmpty           = isEmpty,
-                    expenseCategories = expenseCategories
-                )
-            }
+        _uiState.update {
+            it.copy(
+                overallBudget     = overallItem,
+                categoryBudgets   = catItems,
+                totalSpent        = overallSpent,
+                totalBudgeted     = totalBudgeted,
+                overallProgress   = overallItem?.progress ?: 0f,
+                isEmpty           = isEmpty,
+                expenseCategories = expenseCategories
+            )
         }
     }
 

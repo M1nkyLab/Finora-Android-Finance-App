@@ -57,18 +57,15 @@ class AddTransactionViewModel @Inject constructor(
             }
             launch {
                 repo.accounts().collect { accs ->
-                    _uiState.update { it.copy(accounts = accs) }
+                    _uiState.update { state ->
+                        state.copy(
+                            accounts = accs,
+                            // Pick the first account as default only once
+                            selectedAccountId = state.selectedAccountId ?: accs.firstOrNull()?.id
+                        )
+                    }
                 }
             }
-        }
-    }
-
-    fun setAccountContext(accounts: List<AccountEntity>, defaultAccountId: String?) {
-        _uiState.update { state ->
-            state.copy(
-                accounts = accounts.ifEmpty { state.accounts },
-                selectedAccountId = state.selectedAccountId ?: defaultAccountId
-            )
         }
     }
 

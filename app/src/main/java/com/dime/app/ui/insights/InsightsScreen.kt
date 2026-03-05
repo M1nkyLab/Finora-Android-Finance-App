@@ -46,8 +46,9 @@ import kotlin.math.roundToInt
 private val BgDeep    = Color(0xFF0D0D0F)
 private val BgCard    = Color(0xFF17171C)
 private val BgChip    = Color(0xFF232329)
-private val GreenInc  = Color.Green
-private val RedExp    = Color.Red
+private val AccentPurple = Color(0xFF9B6FFF)
+private val GreenInc  = Color(0xFF34D399)
+private val RedExp    = Color(0xFFFF5C5C)
 private val TextPrim  = Color(0xFFF0F0F5)
 private val TextSub   = Color(0xFF7A7A8C)
 private val TextHint  = Color(0xFF4A4A5A)
@@ -157,6 +158,8 @@ private fun PeriodNavigator(
             maximumFractionDigits = decimals
         }
     }
+    val netBalance = state.current.totalIncome - state.current.totalSpent
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -164,13 +167,28 @@ private fun PeriodNavigator(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Bottom
     ) {
-        Text(
-            text = state.periodLabel,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            color = TextSub,
-            modifier = Modifier.padding(bottom = 2.dp)
-        )
+        Column(horizontalAlignment = Alignment.Start) {
+            Text(
+                text = "NET BALANCE",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextHint
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = currency.code + " ",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextSub
+                )
+                Text(
+                    text = nf.format(netBalance as Any),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrim
+                )
+            }
+        }
 
         Column(horizontalAlignment = Alignment.End) {
             Text(
@@ -182,13 +200,13 @@ private fun PeriodNavigator(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = currency.code + " ",
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextHint
+                    color = TextSub
                 )
                 Text(
-                    text = nf.format(state.current.avgPerDay),
-                    fontSize = 12.sp,
+                    text = nf.format(state.current.avgPerDay as Any),
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextPrim
                 )
@@ -216,46 +234,46 @@ private fun QuickSummaryCards(state: InsightsUiState) {
             .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Income Card — green border
+        // Income Card — green tint + border
         Column(
             modifier = Modifier
                 .weight(1f)
                 .clip(RoundedCornerShape(16.dp))
-                .border(1.dp, GreenInc.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
-                .background(BgCard)
-                .padding(vertical = 12.dp, horizontal = 16.dp),
+                .background(GreenInc.copy(alpha = 0.07f))
+                .border(1.dp, GreenInc.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+                .padding(vertical = 14.dp, horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("INCOME", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = GreenInc.copy(alpha = 0.7f))
-            Spacer(Modifier.height(4.dp))
+            Text("INCOME", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = GreenInc.copy(alpha = 0.8f), letterSpacing = 0.5.sp)
+            Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(currency.code + " ", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = GreenInc.copy(alpha = 0.6f))
                 com.dime.app.ui.components.AnimatedAmountText(
                     amount = s.totalIncome.toFloat(),
-                    fontSize = 15.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = GreenInc
                 )
             }
         }
 
-        // Expenses Card — red border
+        // Expenses Card — red tint + border
         Column(
             modifier = Modifier
                 .weight(1f)
                 .clip(RoundedCornerShape(16.dp))
-                .border(1.dp, RedExp.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
-                .background(BgCard)
-                .padding(vertical = 12.dp, horizontal = 16.dp),
+                .background(RedExp.copy(alpha = 0.07f))
+                .border(1.dp, RedExp.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+                .padding(vertical = 14.dp, horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("EXPENSES", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = RedExp.copy(alpha = 0.7f))
-            Spacer(Modifier.height(4.dp))
+            Text("EXPENSES", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = RedExp.copy(alpha = 0.8f), letterSpacing = 0.5.sp)
+            Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(currency.code + " ", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = RedExp.copy(alpha = 0.6f))
                 com.dime.app.ui.components.AnimatedAmountText(
                     amount = s.totalSpent.toFloat(),
-                    fontSize = 15.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = RedExp
                 )
@@ -438,8 +456,8 @@ private fun BarChartCard(
                 )
                 val isSelected = idx == state.selectedBarIndex
                 val barColor   = when {
-                    isSelected   -> TextPrim
-                    entry.isToday -> TextSub
+                    isSelected    -> AccentPurple
+                    entry.isToday -> TextSub.copy(alpha = 0.6f)
                     else          -> BgChip
                 }
 

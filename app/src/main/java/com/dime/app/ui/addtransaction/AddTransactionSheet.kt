@@ -38,8 +38,8 @@ import java.time.format.DateTimeFormatter
 // ── Palette ────────────────────────────────────────────────────────────────────
 private val BgDeep      = Color(0xFF000000)
 private val BgCard      = Color(0xFF0F0F14)
-private val IncomeGreen = Color(0xFF4CAF82)
-private val ExpenseRed  = Color(0xFFE05C6A)
+private val IncomeGreen = Color(0xFF34D399)
+private val ExpenseRed  = Color(0xFFFF5C5C)
 private val TextPrimary = Color(0xFFF0F0F5)
 private val TextSub     = Color(0xFF6B6B80)
 private val DividerCol  = Color(0xFF1E1E28)
@@ -49,17 +49,10 @@ private val DividerCol  = Color(0xFF1E1E28)
 @Composable
 fun AddTransactionSheet(
     onDismiss: () -> Unit,
-    accounts: List<AccountEntity> = emptyList(),
-    selectedAccountId: String? = null,
     viewModel: AddTransactionViewModel = hiltViewModel()
 ) {
     val state   by viewModel.uiState.collectAsStateWithLifecycle()
     val currency = LocalCurrency.current
-
-    // Push account context from hoisted dashboard state
-    LaunchedEffect(accounts, selectedAccountId) {
-        viewModel.setAccountContext(accounts, selectedAccountId)
-    }
 
     // Auto-dismiss on success
     LaunchedEffect(state.savedSuccessfully) {
@@ -75,6 +68,7 @@ fun AddTransactionSheet(
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
             .background(BgDeep)
+            .imePadding()
             .padding(bottom = 32.dp)
     ) {
         // ── Header ──────────────────────────────────────────────────────────────
@@ -312,15 +306,15 @@ private fun TypeOption(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(10.dp))
-            .background(if (selected) color.copy(alpha = 0.18f) else Color.Transparent)
+            .background(if (selected) color.copy(alpha = 0.22f) else Color.Transparent)
             .bounceClick { onClick() }
-            .padding(vertical = 12.dp),
+            .padding(vertical = 14.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             label,
             fontSize   = 15.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
             color      = if (selected) color else TextSub
         )
     }
@@ -365,10 +359,14 @@ private fun AmountInput(
         Spacer(Modifier.height(4.dp))
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.6f)
-                .height(2.dp)
-                .clip(RoundedCornerShape(1.dp))
-                .background(accentColor.copy(alpha = 0.5f))
+                .fillMaxWidth(0.75f)
+                .height(3.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(
+                    androidx.compose.ui.graphics.Brush.horizontalGradient(
+                        listOf(accentColor.copy(alpha = 0f), accentColor.copy(alpha = 0.7f), accentColor.copy(alpha = 0f))
+                    )
+                )
         )
     }
 }
@@ -385,14 +383,14 @@ private fun BasicAmountField(
         placeholder   = {
             Text(
                 "0.00",
-                fontSize   = 42.sp,
+                fontSize   = 56.sp,
                 fontWeight = FontWeight.Bold,
-                color      = TextSub,
+                color      = color.copy(alpha = 0.25f),
                 textAlign  = TextAlign.Center
             )
         },
         textStyle     = androidx.compose.ui.text.TextStyle(
-            fontSize   = 42.sp,
+            fontSize   = 56.sp,
             fontWeight = FontWeight.Bold,
             color      = color,
             textAlign  = TextAlign.Center
@@ -404,7 +402,7 @@ private fun BasicAmountField(
             unfocusedBorderColor = Color.Transparent,
             cursorColor          = color
         ),
-        modifier = Modifier.widthIn(min = 80.dp, max = 260.dp)
+        modifier = Modifier.widthIn(min = 80.dp, max = 300.dp)
     )
 }
 
@@ -475,12 +473,12 @@ private fun CategoryRow(
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
                     .background(
-                        if (selected) accentColor.copy(alpha = 0.18f) else BgCard
+                        if (selected) accentColor.copy(alpha = 0.20f) else BgCard
                     )
                     .border(
-                        1.dp,
-                        if (selected) accentColor.copy(alpha = 0.5f) else DividerCol,
-                        RoundedCornerShape(12.dp)
+                        width = if (selected) 1.5.dp else 1.dp,
+                        color = if (selected) accentColor.copy(alpha = 0.6f) else DividerCol,
+                        shape = RoundedCornerShape(12.dp)
                     )
                     .bounceClick { onSelect(cat.id) }
                     .padding(horizontal = 14.dp, vertical = 10.dp)

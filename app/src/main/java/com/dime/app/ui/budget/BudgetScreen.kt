@@ -73,7 +73,7 @@ fun BudgetScreen(
                 elevation      = FloatingActionButtonDefaults.elevation(0.dp),
                 modifier       = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 20.dp, bottom = 24.dp)
+                    .padding(end = 20.dp, bottom = 100.dp)
             ) {
                 Icon(Icons.Rounded.Add, contentDescription = "Add budget", modifier = Modifier.size(26.dp))
             }
@@ -268,7 +268,7 @@ private fun BudgetCard(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .offset { androidx.compose.ui.unit.IntOffset(animatedOffset.dp.roundToPx(), 0) }
+                .offset { IntOffset(animatedOffset.toInt(), 0) }
                 .pointerInput(Unit) {
                     detectHorizontalDragGestures(
                         onDragEnd = {
@@ -289,11 +289,15 @@ private fun BudgetCard(
     }
 }
 
+private val GreenInc  = Color(0xFF34D399)
+private val RedExp    = Color(0xFFFF5C5C)
+private val AccentPurple = Color(0xFF9B6FFF)
+
 @Composable
 private fun BudgetCardContent(item: BudgetDisplayItem) {
     val barColor = when {
-        item.isOverBudget -> Color.Red
-        item.showGreen    -> Color.Green
+        item.isOverBudget -> RedExp
+        item.showGreen    -> GreenInc
         else              -> MaterialTheme.colorScheme.primary
     }
 
@@ -354,7 +358,7 @@ private fun BudgetCardContent(item: BudgetDisplayItem) {
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     formatMoney(item.spent),
-                    color      = if (item.isOverBudget) Color.Red else MaterialTheme.colorScheme.onSurface,
+                    color      = if (item.isOverBudget) RedExp else MaterialTheme.colorScheme.onSurface,
                     fontSize   = 15.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -390,7 +394,7 @@ private fun BudgetCardContent(item: BudgetDisplayItem) {
             Spacer(Modifier.height(6.dp))
             Text(
                 "Over by ${formatMoney(item.spent - item.amount)}",
-                color    = Color.Red,
+                color    = RedExp,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium
             )

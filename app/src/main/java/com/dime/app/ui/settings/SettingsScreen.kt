@@ -107,7 +107,7 @@ fun SettingsScreen(
                 SettingsSection(title = "AI Input") {
                     SettingsRow(
                         icon     = Icons.Rounded.AutoAwesome,
-                        iconTint = MaterialTheme.colorScheme.primary,
+                        iconTint = Color(0xFF9B6FFF), // AccentPurple
                         label    = "Gemini API Key",
                         value    = if (state.geminiApiKey.isNotBlank()) "••••${state.geminiApiKey.takeLast(4)}" else "Not set",
                         onClick  = viewModel::openApiKeyDialog
@@ -247,16 +247,29 @@ private fun SettingsHeader(state: SettingsUiState) {
         Text("Settings", color = MaterialTheme.colorScheme.onBackground, fontSize = 28.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(16.dp))
         Row(
-            modifier            = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(20.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            modifier            = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            StatPill(value = "${state.transactionCount}", label = "Transactions")
-            Box(modifier = Modifier.width(1.dp).height(36.dp).background(MaterialTheme.colorScheme.surfaceVariant))
-            StatPill(value = "${state.categoryCount}", label = "Categories")
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                StatPill(value = "${state.transactionCount}", label = "Transactions")
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                StatPill(value = "${state.categoryCount}", label = "Categories")
+            }
         }
         Spacer(Modifier.height(8.dp))
     }

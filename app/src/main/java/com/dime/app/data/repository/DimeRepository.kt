@@ -11,6 +11,7 @@ import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -47,13 +48,13 @@ class DimeRepository @Inject constructor(
 
     // ── Refresh (load from Supabase) ───────────────────────────────────────────
 
-    private suspend fun refreshAll() {
-        refreshAccounts()
-        refreshCategories()
-        refreshTransactions()
-        refreshBudgets()
-        refreshMainBudget()
-        refreshTemplates()
+    private suspend fun refreshAll() = coroutineScope {
+        launch { refreshAccounts() }
+        launch { refreshCategories() }
+        launch { refreshTransactions() }
+        launch { refreshBudgets() }
+        launch { refreshMainBudget() }
+        launch { refreshTemplates() }
     }
 
     private suspend fun refreshAccounts() {
