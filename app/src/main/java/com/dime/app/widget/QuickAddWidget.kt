@@ -110,7 +110,7 @@ class QuickAddWidget : AppWidgetProvider() {
                 } else {
                     updatedViews.setInt(R.id.widget_root, "setBackgroundResource", R.drawable.widget_bg_quick_add)
                     updatedViews.setTextColor(R.id.tv_subtitle, android.graphics.Color.parseColor("#666666"))
-                    updatedViews.setTextColor(R.id.tv_main_balance, android.graphics.Color.parseColor("#0052FF"))
+                    updatedViews.setTextColor(R.id.tv_main_balance, android.graphics.Color.parseColor("#000000"))
                     updatedViews.setTextColor(R.id.tv_secondary_metric, android.graphics.Color.parseColor("#333333"))
                 }
 

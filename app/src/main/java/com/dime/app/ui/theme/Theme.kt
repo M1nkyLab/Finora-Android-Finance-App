@@ -9,18 +9,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 private val DarkColorPalette = darkColorScheme(
-    primary = Color(0xFF9B6FFF),
-    background = Color(0xFF000000),  // True OLED black
-    surface = Color(0xFF0D0D12),     // Near-black, slight lavender undertone
+    primary = Color.White,
+    onPrimary = Color.Black,
+    background = Color(0xFF000000),
+    surface = Color(0xFF121212),
     onSurface = Color.White,
     onBackground = Color.White,
     secondary = Color(0xFF7A7A8C)
 )
 
 private val LightColorPalette = lightColorScheme(
-    primary = Color(0xFF9B6FFF),
-    background = Color(0xFFFDFDFD),
-    surface = Color(0xFFF0F0F0),
+    primary = Color.Black,
+    onPrimary = Color.White,
+    background = Color.White,
+    surface = Color(0xFFF5F5F5),
     onSurface = Color.Black,
     onBackground = Color.Black,
     secondary = Color(0xFF5A5A6C)

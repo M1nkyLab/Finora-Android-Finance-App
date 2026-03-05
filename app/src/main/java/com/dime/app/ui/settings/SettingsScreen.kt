@@ -67,7 +67,7 @@ fun SettingsScreen(
                 SettingsSection(title = "Currency") {
                     SettingsRow(
                         icon       = Icons.Rounded.AttachMoney,
-                        iconTint   = Color(0xFF34C759),
+                        iconTint   = MaterialTheme.colorScheme.primary,
                         label      = "Currency",
                         value      = "${state.currencyCode}  ${state.currencySymbol}",
                         onClick    = viewModel::openCurrencyPicker
@@ -75,7 +75,7 @@ fun SettingsScreen(
                     SettingsDivider()
                     SettingsToggleRow(
                         icon       = Icons.Rounded.Numbers,
-                        iconTint   = Color(0xFF0A84FF),
+                        iconTint   = MaterialTheme.colorScheme.primary,
                         label      = "Show cents",
                         sublabel   = "Display decimal places",
                         checked    = state.showCents,
@@ -89,7 +89,7 @@ fun SettingsScreen(
                 SettingsSection(title = "Appearance") {
                     SegmentedRow(
                         icon     = Icons.Rounded.DarkMode,
-                        iconTint = Color(0xFF5E5CE6),
+                        iconTint = MaterialTheme.colorScheme.primary,
                         label    = "Theme",
                         options  = ColourScheme.entries.map { it.label },
                         selected = state.colourScheme.ordinal,
@@ -107,7 +107,7 @@ fun SettingsScreen(
                 SettingsSection(title = "AI Input") {
                     SettingsRow(
                         icon     = Icons.Rounded.AutoAwesome,
-                        iconTint = Color(0xFF9B6FFF),
+                        iconTint = MaterialTheme.colorScheme.primary,
                         label    = "Gemini API Key",
                         value    = if (state.geminiApiKey.isNotBlank()) "••••${state.geminiApiKey.takeLast(4)}" else "Not set",
                         onClick  = viewModel::openApiKeyDialog
@@ -127,7 +127,7 @@ fun SettingsScreen(
                     SettingsDivider()
                     SettingsInfoRow(
                         icon     = Icons.Rounded.Category,
-                        iconTint = Color(0xFF34C759),
+                        iconTint = MaterialTheme.colorScheme.primary,
                         label    = "Categories",
                         value    = "${state.categoryCount}"
                     )
@@ -199,7 +199,7 @@ fun SettingsScreen(
                 Icon(
                     Icons.Rounded.AutoAwesome,
                     contentDescription = null,
-                    tint = Color(0xFF9B6FFF)
+                    tint = MaterialTheme.colorScheme.primary
                 )
             },
             title = { Text("Gemini API Key") },
@@ -223,7 +223,7 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = viewModel::saveApiKey) {
-                    Text("Save", color = Color(0xFF9B6FFF))
+                    Text("Save", color = MaterialTheme.colorScheme.primary)
                 }
             },
             dismissButton = {

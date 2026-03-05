@@ -24,7 +24,7 @@ import androidx.compose.runtime.mutableStateOf
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    private val openAiInputState = mutableStateOf(false)
+    private val openAddTransactionState = mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,8 +55,8 @@ class MainActivity : ComponentActivity() {
             DimeTheme(darkTheme = darkTheme) {
                 CompositionLocalProvider(LocalCurrency provides currencyConfig) {
                     MainScreen(
-                        startOpenAiInput = openAiInputState.value,
-                        onAiInputOpened = { openAiInputState.value = false }
+                        startAddTransaction = openAddTransactionState.value,
+                        onAddTransactionOpened = { openAddTransactionState.value = false }
                     )
                 }
             }
@@ -69,8 +69,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
-        if (intent?.getBooleanExtra("OPEN_AI_INPUT", false) == true) {
-            openAiInputState.value = true
+        if (intent?.getBooleanExtra("OPEN_ADD_TRANSACTION", false) == true) {
+            openAddTransactionState.value = true
         }
     }
 }

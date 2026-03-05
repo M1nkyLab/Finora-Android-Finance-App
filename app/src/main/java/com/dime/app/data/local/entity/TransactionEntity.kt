@@ -16,5 +16,6 @@ data class TransactionEntity(
     @SerialName("once_recurring") val onceRecurring: Boolean = false,
     @SerialName("recurring_type") val recurringType: Int = 0,
     @SerialName("recurring_coefficient") val recurringCoefficient: Int = 0,
-    @SerialName("category_id") val categoryId: String? = null
+    @SerialName("category_id") val categoryId: String? = null,
+    @SerialName("account_id") val accountId: String? = null
 )

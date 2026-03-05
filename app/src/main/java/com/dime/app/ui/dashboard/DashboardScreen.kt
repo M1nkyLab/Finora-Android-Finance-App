@@ -40,6 +40,14 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import com.dime.app.util.LocalCurrency
 import kotlin.math.abs
+import com.dime.app.data.local.entity.AccountEntity
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.material.icons.rounded.AccountBalance
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.CheckCircle
 
 // ── Palette (Luxury / Premium OLED Fintech) ──────────────────────────────────────
 private val BgDeep       = Color(0xFF000000)   // true OLED black canvas
@@ -62,6 +70,11 @@ fun DashboardScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val period by viewModel.period.collectAsStateWithLifecycle()
+    val accounts by viewModel.accounts.collectAsStateWithLifecycle()
+    val selectedAccId by viewModel.selectedAccountId.collectAsStateWithLifecycle()
+
+    val scope = rememberCoroutineScope()
+    var showAccountSheet by remember { mutableStateOf(false) }
 
     Surface(color = BgDeep, modifier = Modifier.fillMaxSize()) {
         when (val s = uiState) {
@@ -69,9 +82,28 @@ fun DashboardScreen(
             is DashboardUiState.Ready -> ReadyContent(
                 state = s,
                 period = period,
-                onPeriodChange = viewModel::selectPeriod
+                accounts = accounts,
+                selectedAccountId = selectedAccId,
+                onPeriodChange = viewModel::selectPeriod,
+                onAccountClick = { showAccountSheet = true }
             )
         }
+    }
+
+    if (showAccountSheet) {
+        AccountPickerSheet(
+            accounts = accounts,
+            selectedAccountId = selectedAccId,
+            onSelectAccount = { id ->
+                viewModel.selectAccount(id)
+                showAccountSheet = false
+            },
+            onAddAccount = { name, balance ->
+                scope.launch { viewModel.addAccount(name, balance) }
+                showAccountSheet = false
+            },
+            onDismiss = { showAccountSheet = false }
+        )
     }
 }
 
@@ -118,18 +150,16 @@ private fun LoadingState() {
 private fun ReadyContent(
     state: DashboardUiState.Ready,
     period: TimePeriod,
-    onPeriodChange: (TimePeriod) -> Unit
+    accounts: List<AccountEntity>,
+    selectedAccountId: String?,
+    onPeriodChange: (TimePeriod) -> Unit,
+    onAccountClick: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 96.dp), // clear bottom nav bar
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // ── Header + Period Selector ──────────────────────────────────────
-        item {
-            DashboardHeader()
-        }
-
         // ── Hero KPI card (net balance) ────────────────────────────────────────
         item {
             HeroKpiCard(
@@ -137,11 +167,14 @@ private fun ReadyContent(
                 spent = state.totalSpent,
                 income = state.totalIncome,
                 period = period,
+                accounts = accounts,
+                selectedAccId = selectedAccountId,
                 onPeriodClick = {
                     val entries = TimePeriod.entries
                     val nextIndex = (entries.indexOf(period) + 1) % entries.size
                     onPeriodChange(entries[nextIndex])
-                }
+                },
+                onAccountClick = onAccountClick
             )
         }
 
@@ -186,44 +219,6 @@ private fun ReadyContent(
     }
 }
 
-// ── Header ─────────────────────────────────────────────────────────────────────
-
-@Composable
-private fun DashboardHeader(onSearchClick: () -> Unit = {}, onFilterClick: () -> Unit = {}) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .padding(top = 24.dp, bottom = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconButton(
-            onClick = onSearchClick,
-            modifier = Modifier.size(40.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Search,
-                contentDescription = "Search",
-                tint = TextPrimary,
-                modifier = Modifier.size(24.dp).bounceClick { onSearchClick() }
-            )
-        }
-
-        IconButton(
-            onClick = onFilterClick,
-            modifier = Modifier.size(40.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Tune,
-                contentDescription = "Filter",
-                tint = TextPrimary,
-                modifier = Modifier.size(24.dp).bounceClick { onFilterClick() }
-            )
-        }
-    }
-}
-
 // ── Period selector ────────────────────────────────────────────────────────────
 
 
@@ -236,15 +231,22 @@ private fun HeroKpiCard(
     spent: Double,
     income: Double,
     period: TimePeriod,
-    onPeriodClick: () -> Unit
+    accounts: List<AccountEntity>,
+    selectedAccId: String?,
+    onPeriodClick: () -> Unit,
+    onAccountClick: () -> Unit
 ) {
     val isPositive = net >= 0
     val netColor = if (isPositive) AccentGreen else AccentRed
 
+    val accountLabel = if (selectedAccId == null) "All Accounts"
+                       else accounts.find { it.id == selectedAccId }?.accountName ?: "All Accounts"
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = 20.dp)
+            .padding(top = 24.dp),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         elevation = CardDefaults.cardElevation(0.dp)
@@ -255,15 +257,37 @@ private fun HeroKpiCard(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = "Net Total",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary,
-                    modifier = Modifier.padding(end = 8.dp)
-                )
+                // Account Button
+                Surface(
+                    onClick = onAccountClick,
+                    shape = RoundedCornerShape(100.dp),
+                    border = BorderStroke(1.dp, Divider),
+                    color = Color.Transparent
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = accountLabel.uppercase(),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextSub,
+                            letterSpacing = 0.5.sp
+                        )
+                        Spacer(Modifier.width(2.dp))
+                        Icon(
+                            imageVector = Icons.Rounded.KeyboardArrowDown,
+                            contentDescription = "Switch account",
+                            tint = TextSub,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+
+                // Period Button
                 Surface(
                     onClick = onPeriodClick,
                     shape = RoundedCornerShape(100.dp),
@@ -572,5 +596,201 @@ private fun DayHeader(date: Long, net: Double) {
         }
         Spacer(Modifier.height(4.dp))
         HorizontalDivider(thickness = 0.5.dp, color = Divider)
+    }
+}
+
+// ── Account Picker Sheet ────────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AccountPickerSheet(
+    accounts: List<AccountEntity>,
+    selectedAccountId: String?,
+    onSelectAccount: (String?) -> Unit,
+    onAddAccount: (String, Double) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val currency = LocalCurrency.current
+    var isAddingNew by remember { mutableStateOf(false) }
+    var newName by remember { mutableStateOf("") }
+    var newBalance by remember { mutableStateOf("") }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = BgCard,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = Divider) }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                text = "Select Data Source",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // "All Accounts" aggregate option
+                item {
+                    AccountItem(
+                        name = "All Accounts",
+                        balanceLabel = "Aggregate View",
+                        icon = Icons.Rounded.AccountBalance,
+                        isSelected = selectedAccountId == null,
+                        onClick = { onSelectAccount(null) }
+                    )
+                }
+
+                items(accounts) { acc ->
+                    AccountItem(
+                        name = acc.accountName,
+                        balanceLabel = "${currency.code} ${currency.format(acc.startingBalance)}",
+                        icon = Icons.Rounded.AccountBalance,
+                        isSelected = selectedAccountId == acc.id,
+                        onClick = { onSelectAccount(acc.id) }
+                    )
+                }
+
+                // Add Account form / button
+                item {
+                    Spacer(Modifier.height(8.dp))
+                    if (isAddingNew) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(BgCardAlt)
+                                .border(1.dp, Divider, RoundedCornerShape(16.dp))
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text("New Account", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                            OutlinedTextField(
+                                value = newName,
+                                onValueChange = { newName = it },
+                                label = { Text("Account Name", color = TextSub) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = TextPrimary,
+                                    unfocusedTextColor = TextPrimary,
+                                    focusedBorderColor = AccentGreen,
+                                    unfocusedBorderColor = Divider
+                                ),
+                                keyboardOptions = KeyboardOptions(capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Words)
+                            )
+                            OutlinedTextField(
+                                value = newBalance,
+                                onValueChange = { newBalance = it },
+                                label = { Text("Starting Balance", color = TextSub) },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = TextPrimary,
+                                    unfocusedTextColor = TextPrimary,
+                                    focusedBorderColor = AccentGreen,
+                                    unfocusedBorderColor = Divider
+                                )
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(onClick = { isAddingNew = false }) {
+                                    Text("Cancel", color = TextSub)
+                                }
+                                Button(
+                                    onClick = {
+                                        if (newName.isNotBlank()) {
+                                            val bal = newBalance.toDoubleOrNull() ?: 0.0
+                                            onAddAccount(newName, bal)
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = AccentGreen)
+                                ) {
+                                    Text("Save", color = BgDeep, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .clickable { isAddingNew = true }
+                                .border(1.dp, Divider, RoundedCornerShape(16.dp))
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(Icons.Rounded.Add, contentDescription = "Add", tint = TextSub, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Add Account", color = TextSub, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountItem(
+    name: String,
+    balanceLabel: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (isSelected) AccentGreen.copy(alpha = 0.1f) else BgCardAlt)
+            .clickable(onClick = onClick)
+            .border(
+                width = 1.dp,
+                color = if (isSelected) AccentGreen.copy(alpha = 0.3f) else Color.Transparent,
+                shape = RoundedCornerShape(16.dp)
+            )
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(if (isSelected) AccentGreen.copy(alpha = 0.2f) else BgDeep),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = if (isSelected) AccentGreen else TextSub, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = name,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isSelected) AccentGreen else TextPrimary
+            )
+            Text(
+                text = balanceLabel,
+                fontSize = 13.sp,
+                color = if (isSelected) AccentGreen.copy(alpha = 0.8f) else TextSub
+            )
+        }
+        if (isSelected) {
+            Icon(Icons.Rounded.CheckCircle, contentDescription = "Selected", tint = AccentGreen, modifier = Modifier.size(24.dp))
+        }
     }
 }

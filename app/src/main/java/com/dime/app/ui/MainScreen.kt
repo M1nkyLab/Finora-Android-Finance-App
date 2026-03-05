@@ -16,13 +16,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -31,11 +29,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.dime.app.ui.components.bounceClick
 import androidx.navigation.compose.rememberNavController
-import com.dime.app.ui.ai.BrainDumpSheet
+import com.dime.app.ui.addtransaction.AddTransactionSheet
 import com.dime.app.ui.budget.BudgetScreen
 import com.dime.app.ui.dashboard.DashboardScreen
+import com.dime.app.ui.dashboard.DashboardViewModel
 import com.dime.app.ui.insights.InsightsScreen
 import com.dime.app.ui.settings.SettingsScreen
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 
 // ── Route constants ─────────────────────────────────────────────────────────────
@@ -60,42 +61,41 @@ private val tabs = listOf(
     TabItem(Route.SETTINGS, "Settings", Icons.Rounded.Settings)
 )
 
-private val AiGradient = Brush.linearGradient(
-    colors = listOf(Color(0xFF9B6FFF), Color(0xFF5B8FFF))
-)
-
 /**
  * Root composable — replaces iOS HomeView + CustomTabBar.
  *
  *  - NavHost  → iOS TabView
  *  - DimeNavigationBar → iOS CustomTabBar
- *  - FAB ("+") → iOS TransactionView trigger
- *  - ModalBottomSheet → iOS TransactionView sheet presentation
+ *  - FAB ("+") → opens AddTransactionSheet
+ *  - ModalBottomSheet → manual transaction entry
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
-    startOpenAiInput: Boolean = false,
-    onAiInputOpened: () -> Unit = {}
+    startAddTransaction: Boolean = false,
+    onAddTransactionOpened: () -> Unit = {}
 ) {
     val navController  = rememberNavController()
     val scope          = rememberCoroutineScope()
 
-    var showBrainDump  by remember { mutableStateOf(false) }
-    val brainDumpState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // Hoist DashboardViewModel here so AddTransactionSheet can share account state
+    val dashVm: DashboardViewModel = hiltViewModel()
+    val accounts       by dashVm.accounts.collectAsStateWithLifecycle()
+    val selectedAccId  by dashVm.selectedAccountId.collectAsStateWithLifecycle()
 
-    LaunchedEffect(startOpenAiInput) {
-        if (startOpenAiInput) {
-            showBrainDump = true
-            onAiInputOpened()
+    var showAddTransaction by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    LaunchedEffect(startAddTransaction) {
+        if (startAddTransaction) {
+            showAddTransaction = true
+            onAddTransactionOpened()
         }
     }
 
-    val openBrainDump: () -> Unit = {
-        showBrainDump = true
+    val openAddTransaction: () -> Unit = {
+        showAddTransaction = true
     }
-
-
 
     // Full-screen Box so the nav bar can float over the content
     Box(modifier = Modifier.fillMaxSize()) {
@@ -109,7 +109,8 @@ fun MainScreen(
                 enterTransition  = { fadeIn(tween(200)) },
                 exitTransition   = { fadeOut(tween(200)) }
             ) {
-                DashboardScreen()
+                // Pass the same hoisted ViewModel so DashboardScreen shares state
+                DashboardScreen(viewModel = dashVm)
             }
             composable(Route.INSIGHTS,
                 enterTransition  = { fadeIn(tween(200)) },
@@ -141,27 +142,29 @@ fun MainScreen(
             DimeNavigationBar(
                 navController = navController,
                 tabs          = tabs,
-                onAiClick     = openBrainDump
+                onAddClick    = openAddTransaction
             )
         }
     }
 
 
-    // ── Brain Dump bottom sheet ────────────────────────────────────────────────
-    if (showBrainDump) {
+    // ── Add Transaction bottom sheet ───────────────────────────────────────────
+    if (showAddTransaction) {
         ModalBottomSheet(
-            onDismissRequest  = { showBrainDump = false },
-            sheetState        = brainDumpState,
-            containerColor    = Color(0xFF000000),  // True OLED black
-            dragHandle        = { Box(Modifier.padding(top = 8.dp).size(40.dp, 4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0xFF1A1A2E))) },  // lavender-tinted handle
+            onDismissRequest  = { showAddTransaction = false },
+            sheetState        = sheetState,
+            containerColor    = MaterialTheme.colorScheme.background,
+            dragHandle        = { Box(Modifier.padding(top = 8.dp).size(40.dp, 4.dp).clip(RoundedCornerShape(2.dp)).background(MaterialTheme.colorScheme.outline)) },
             shape             = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
         ) {
-            BrainDumpSheet(
+            AddTransactionSheet(
                 onDismiss = {
-                    scope.launch { brainDumpState.hide() }.invokeOnCompletion {
-                        showBrainDump = false
+                    scope.launch { sheetState.hide() }.invokeOnCompletion {
+                        showAddTransaction = false
                     }
-                }
+                },
+                accounts          = accounts,
+                selectedAccountId = selectedAccId
             )
         }
     }
@@ -173,7 +176,7 @@ fun MainScreen(
 private fun DimeNavigationBar(
     navController: androidx.navigation.NavController,
     tabs: List<TabItem>,
-    onAiClick: () -> Unit = {}
+    onAddClick: () -> Unit = {}
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -186,11 +189,11 @@ private fun DimeNavigationBar(
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            color = Color(0xFF0D0D12).copy(alpha = 0.88f),  // Deep glass: dark-lavender translucent
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.92f),
             shape = RoundedCornerShape(50.dp),
             tonalElevation = 0.dp,
             shadowElevation = 12.dp,
-            border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),  // Subtle glass edge
+            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
             modifier = Modifier
                 .height(68.dp)  // Slightly taller for premium feel
                 .fillMaxWidth()
@@ -199,49 +202,34 @@ private fun DimeNavigationBar(
                 modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Layout 5 items: 2 tabs, AI btn, 2 tabs
+                // Layout 5 items: 2 tabs, Add btn, 2 tabs
                 (0 until 5).forEach { index ->
                     if (index == 2) {
-                        // AI sparkle button (Primary Action)
+                        // Central "+" Add Transaction button
                         Box(
                             modifier = Modifier.weight(1.2f),
                             contentAlignment = Alignment.Center
                         ) {
-                            val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-                            val pulseScale by infiniteTransition.animateFloat(
-                                initialValue = 1f,
-                                targetValue = 1.06f,  // Subtler, more premium pulse
-                                animationSpec = infiniteRepeatable(
-                                    animation = tween(1400, easing = EaseInOut),
-                                    repeatMode = RepeatMode.Reverse
-                                ),
-                                label = "pulse_scale"
-                            )
-
                             Box(
                                 modifier = Modifier
-                                    .size(52.dp)  // Larger central CTA for prominence
-                                    .graphicsLayer {
-                                        scaleX = pulseScale
-                                        scaleY = pulseScale
-                                    }
+                                    .size(52.dp)
                                     .clip(CircleShape)
-                                    .background(AiGradient)
-                                    .bounceClick { onAiClick() },
+                                    .background(MaterialTheme.colorScheme.primary)
+                                    .bounceClick { onAddClick() },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    Icons.Rounded.AutoAwesome,
-                                    contentDescription = "AI Input",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(24.dp)
+                                    Icons.Rounded.Add,
+                                    contentDescription = "Add Transaction",
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(26.dp)
                                 )
                             }
                         }
                     } else {
                         val tabIndex = when {
                             index < 2 -> index
-                            else -> index - 1  // Account for AI btn
+                            else -> index - 1  // Account for Add btn
                         }
                         val tab = tabs[tabIndex]
                         val selected = currentDestination?.hierarchy?.any { it.route == tab.route } == true

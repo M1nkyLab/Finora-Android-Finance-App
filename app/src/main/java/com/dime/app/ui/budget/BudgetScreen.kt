@@ -314,7 +314,7 @@ private fun BudgetCardContent(item: BudgetDisplayItem) {
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color(android.graphics.Color.parseColor(cat.colour)).copy(alpha = 0.2f)),
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(cat.emoji, fontSize = 18.sp)
@@ -502,7 +502,7 @@ private fun NewBudgetSheet(
                                     modifier = Modifier
                                         .size(32.dp)
                                         .clip(CircleShape)
-                                        .background(Color(android.graphics.Color.parseColor(cat.colour)).copy(alpha = 0.2f)),
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(cat.emoji, fontSize = 14.sp)

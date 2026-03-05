@@ -42,18 +42,15 @@ import com.dime.app.ui.components.bounceClick
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-// ── Palette ────────────────────────────────────────────────────────────────────
+// ── Palette (B&W + Red expense / Green income only) ──────────────────────────────
 private val BgDeep    = Color(0xFF0D0D0F)
 private val BgCard    = Color(0xFF17171C)
 private val BgChip    = Color(0xFF232329)
-private val AccentPurple = Color(0xFF9B6FFF)
-private val GreenInc  = Color(0xFF34C759)
-private val RedExp    = Color(0xFFFF453A)
+private val GreenInc  = Color.Green
+private val RedExp    = Color.Red
 private val TextPrim  = Color(0xFFF0F0F5)
 private val TextSub   = Color(0xFF7A7A8C)
 private val TextHint  = Color(0xFF4A4A5A)
-private val AccentGreen = Color(0xFF3ECF72)
-private val AccentRed   = Color(0xFFFF4D4D)
 
 // ── Root screen ───────────────────────────────────────────────────────────────
 
@@ -71,7 +68,7 @@ fun InsightsScreen(
     LazyColumn(
         modifier            = Modifier
             .fillMaxSize()
-            .background(BgDeep),
+            .background(MaterialTheme.colorScheme.background),
         contentPadding      = PaddingValues(bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
@@ -193,7 +190,7 @@ private fun PeriodNavigator(
                     text = nf.format(state.current.avgPerDay),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
-                    color = AccentPurple
+                    color = TextPrim
                 )
             }
         }
@@ -323,7 +320,7 @@ private fun PeriodSummaryCard(
                         amount = abs(s.net).toFloat(),
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (s.netPositive) AccentGreen else AccentRed,
+                        color = if (s.netPositive) GreenInc else RedExp,
                         letterSpacing = (-1).sp
                     )
                 }
@@ -420,7 +417,7 @@ private fun BarChartCard(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(bar.label, fontSize = 13.sp, color = TextSub, fontWeight = FontWeight.Medium)
-                    Text(formatAmount(bar.amount), fontSize = 13.sp, color = AccentPurple, fontWeight = FontWeight.Bold)
+                    Text(formatAmount(bar.amount), fontSize = 13.sp, color = TextPrim, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -441,8 +438,8 @@ private fun BarChartCard(
                 )
                 val isSelected = idx == state.selectedBarIndex
                 val barColor   = when {
-                    isSelected   -> AccentPurple
-                    entry.isToday -> AccentPurple.copy(alpha = .55f)
+                    isSelected   -> TextPrim
+                    entry.isToday -> TextSub
                     else          -> BgChip
                 }
 
@@ -662,7 +659,7 @@ private fun InsightsEmptyState() {
     Box(
         modifier         = Modifier
             .fillMaxSize()
-            .background(BgDeep),
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -694,28 +691,11 @@ private fun formatAmount(amount: Double): String {
     return LocalCurrency.current.format(amount)
 }
 
-/** Generate a visually spread palette anchored to the accent colour. */
+/** Shades of accent only (B&W: no extra hues). */
 private fun generatePalette(count: Int, accent: Color): List<Color> {
-    val hue = android.graphics.Color.RGBToHSV(
-        (accent.red * 255).toInt(),
-        (accent.green * 255).toInt(),
-        (accent.blue * 255).toInt(),
-        FloatArray(3)
-    ).let { 0f }.let {
-        val hsv = FloatArray(3)
-        android.graphics.Color.RGBToHSV(
-            (accent.red * 255).toInt(),
-            (accent.green * 255).toInt(),
-            (accent.blue * 255).toInt(),
-            hsv
-        )
-        hsv[0]
-    }
     return (0 until count).map { i ->
-        val h = (hue + i * (300f / count.coerceAtLeast(1))) % 360f
-        val hsv = floatArrayOf(h, 0.7f, 0.85f)
-        val argb = android.graphics.Color.HSVToColor(hsv)
-        Color(argb)
+        val alpha = 0.4f + (0.6f * (i + 1) / count.coerceAtLeast(1))
+        accent.copy(alpha = alpha)
     }
 }
 
@@ -804,7 +784,7 @@ private fun InsightsTransactionRow(
                 Icon(
                     imageVector = Icons.Rounded.Autorenew,
                     contentDescription = "Recurring",
-                    tint = AccentPurple,
+                    tint = TextSub,
                     modifier = Modifier.size(13.dp)
                 )
             }
@@ -814,7 +794,7 @@ private fun InsightsTransactionRow(
             text = (if (tx.income) "+" else "\u2212") + currency.format(tx.amount),
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
-            color = TextSub
+            color = if (tx.income) GreenInc else RedExp
         )
     }
 }

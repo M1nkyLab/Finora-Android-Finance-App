@@ -1,6 +1,7 @@
 package com.dime.app.data.repository
 
 import com.dime.app.data.local.entity.*
+import com.dime.app.data.local.entity.AccountEntity
 import com.dime.app.data.local.relation.*
 import com.dime.app.domain.model.TimePeriod
 import com.dime.app.domain.model.toDateRange
@@ -32,6 +33,7 @@ class DimeRepository @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     // ── In-memory cache ────────────────────────────────────────────────────────
+    private val _accounts     = MutableStateFlow<List<AccountEntity>>(emptyList())
     private val _categories   = MutableStateFlow<List<CategoryEntity>>(emptyList())
     private val _transactions = MutableStateFlow<List<TransactionEntity>>(emptyList())
     private val _budgets      = MutableStateFlow<List<BudgetEntity>>(emptyList())
@@ -46,11 +48,20 @@ class DimeRepository @Inject constructor(
     // ── Refresh (load from Supabase) ───────────────────────────────────────────
 
     private suspend fun refreshAll() {
+        refreshAccounts()
         refreshCategories()
         refreshTransactions()
         refreshBudgets()
         refreshMainBudget()
         refreshTemplates()
+    }
+
+    private suspend fun refreshAccounts() {
+        runCatching {
+            _accounts.value = supabase.from("accounts")
+                .select()
+                .decodeList<AccountEntity>()
+        }.onFailure { android.util.Log.e("DimeRepository", "Error fetching accounts", it) }
     }
 
     private suspend fun refreshCategories() {
@@ -96,6 +107,43 @@ class DimeRepository @Inject constructor(
         }
     }
 
+    // ── Accounts ───────────────────────────────────────────────────────────────
+
+    fun accounts(): Flow<List<AccountEntity>> = _accounts
+
+    fun getAccountById(id: String): AccountEntity? =
+        _accounts.value.find { it.id == id }
+
+    suspend fun saveAccount(account: AccountEntity) {
+        supabase.from("accounts").insert(account)
+        _accounts.value = _accounts.value + account
+    }
+
+    suspend fun updateAccount(account: AccountEntity) {
+        supabase.from("accounts").update(account) { filter { eq("id", account.id) } }
+        _accounts.value = _accounts.value.map { if (it.id == account.id) account else it }
+    }
+
+    suspend fun deleteAccount(account: AccountEntity) {
+        supabase.from("accounts").delete { filter { eq("id", account.id) } }
+        _accounts.value = _accounts.value.filter { it.id != account.id }
+    }
+
+    /**
+     * Scenario A: accountId == null  → sum(starting_balance) + sum(all transactions)
+     * Scenario B: accountId != null  → account.starting_balance + sum(account transactions)
+     */
+    fun accountNetBalance(accountId: String? = null): Flow<Double> {
+        return kotlinx.coroutines.flow.combine(_accounts, _transactions) { accts, txns ->
+            val relevantAccounts = if (accountId == null) accts else accts.filter { it.id == accountId }
+            val relevantTxns     = if (accountId == null) txns  else txns.filter { it.accountId == accountId }
+
+            val startingTotal = relevantAccounts.sumOf { it.startingBalance }
+            val txNet = relevantTxns.sumOf { if (it.income) it.amount else -it.amount }
+            startingTotal + txNet
+        }
+    }
+
     // ── Categories ─────────────────────────────────────────────────────────────
 
     fun allCategories(): Flow<List<CategoryEntity>> = _categories
@@ -132,20 +180,26 @@ class DimeRepository @Inject constructor(
 
     // ── Transactions ───────────────────────────────────────────────────────────
 
-    fun transactions(period: TimePeriod, income: Boolean? = null): Flow<List<TransactionWithCategory>> {
+    fun transactions(
+        period: TimePeriod,
+        income: Boolean? = null,
+        accountId: String? = null   // null = All Accounts
+    ): Flow<List<TransactionWithCategory>> {
         val (start, end) = period.toDateRange()
         return _transactions.map { txList ->
             txList
                 .filter { it.date in start until end }
-                .let { filtered -> if (income != null) filtered.filter { it.income == income } else filtered }
+                .let { filtered -> if (income    != null) filtered.filter { it.income    == income    } else filtered }
+                .let { filtered -> if (accountId != null) filtered.filter { it.accountId == accountId } else filtered }
                 .map { tx -> TransactionWithCategory(tx, findCategory(tx.categoryId)) }
                 .sortedByDescending { it.transaction.date }
         }
     }
 
-    fun allTransactions(income: Boolean? = null): Flow<List<TransactionWithCategory>> =
+    fun allTransactions(income: Boolean? = null, accountId: String? = null): Flow<List<TransactionWithCategory>> =
         _transactions.map { txList ->
-            val filtered = if (income != null) txList.filter { it.income == income } else txList
+            var filtered = if (income    != null) txList.filter { it.income    == income    } else txList
+            filtered     = if (accountId != null) filtered.filter { it.accountId == accountId } else filtered
             filtered
                 .map { tx -> TransactionWithCategory(tx, findCategory(tx.categoryId)) }
                 .sortedByDescending { it.transaction.date }

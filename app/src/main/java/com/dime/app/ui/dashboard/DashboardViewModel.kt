@@ -3,6 +3,7 @@ package com.dime.app.ui.dashboard
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dime.app.data.local.entity.AccountEntity
 import com.dime.app.data.local.relation.TransactionWithCategory
 import com.dime.app.data.repository.DimeRepository
 import com.dime.app.domain.model.TimePeriod
@@ -17,62 +18,75 @@ import java.time.LocalDate
 import javax.inject.Inject
 
 /**
- * ViewModel for the Log / Dashboard screen.
+ * ViewModel for the Dashboard screen.
  *
- * Mirrors iOS DataController computed properties surfaced through
- * @FetchRequest / @Published variables.
- *
- * State is kept in [DashboardUiState] and exposed as a single StateFlow
- * so the Compose UI can collectAsStateWithLifecycle().
+ * Manages both the time period filter and the active account selection.
+ * When selectedAccountId == null the dashboard shows the aggregate of ALL accounts.
  */
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val repository: DimeRepository
 ) : ViewModel() {
 
-    // ── User-selectable time period (mirrors iOS LogView "type" Int) ───────────
+    // ── User-selectable time period ─────────────────────────────────────────────
 
     private val _period = MutableStateFlow(TimePeriod.MONTH)
     val period: StateFlow<TimePeriod> = _period.asStateFlow()
 
     fun selectPeriod(p: TimePeriod) { _period.value = p }
 
-    // ── Derived UI state ───────────────────────────────────────────────────────
+    // ── Account selection (null = "All Accounts") ───────────────────────────────
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val uiState: StateFlow<DashboardUiState> = _period
-        .flatMapLatest { period ->
-            combine(
-                repository.transactions(period),
-                repository.templates()
-            ) { txList, templates ->
-                buildUiState(period, txList, templates)
-            }
-        }
+    private val _selectedAccountId = MutableStateFlow<String?>(null)
+    val selectedAccountId: StateFlow<String?> = _selectedAccountId.asStateFlow()
+
+    val accounts: StateFlow<List<AccountEntity>> = repository.accounts()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = DashboardUiState.Loading
+            initialValue = emptyList()
         )
 
+    /** Switch to a specific account, or pass null to show "All Accounts". */
+    fun selectAccount(id: String?) { _selectedAccountId.value = id }
 
-    // ── Private helpers ────────────────────────────────────────────────────────
+    suspend fun addAccount(name: String, startingBalance: Double) {
+        repository.saveAccount(
+            AccountEntity(accountName = name, startingBalance = startingBalance)
+        )
+    }
+
+    // ── Derived UI state ────────────────────────────────────────────────────────
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val uiState: StateFlow<DashboardUiState> =
+        combine(_period, _selectedAccountId) { period, accountId -> period to accountId }
+            .flatMapLatest { (period, accountId) ->
+                combine(
+                    repository.transactions(period, accountId = accountId),
+                    repository.templates(),
+                    repository.accountNetBalance(accountId)
+                ) { txList, templates, netBalance ->
+                    buildUiState(period, txList, templates, netBalance)
+                }
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = DashboardUiState.Loading
+            )
+
+    // ── Private helpers ─────────────────────────────────────────────────────────
 
     private fun buildUiState(
         period: TimePeriod,
         transactions: List<TransactionWithCategory>,
-        templates: List<com.dime.app.data.local.relation.TemplateWithCategory>
+        templates: List<com.dime.app.data.local.relation.TemplateWithCategory>,
+        accountNetBalance: Double
     ): DashboardUiState {
-        if (transactions.isEmpty() && period != TimePeriod.ALL_TIME) {
-            // Return ready state with zeros (not "Loading")
-        }
 
-        val spent = transactions.filter { !it.transaction.income }
-            .sumOf { it.transaction.amount }
-        val income = transactions.filter { it.transaction.income }
-            .sumOf { it.transaction.amount }
-        val net = income - spent
-
+        val spent  = transactions.filter { !it.transaction.income }.sumOf { it.transaction.amount }
+        val income = transactions.filter {  it.transaction.income }.sumOf { it.transaction.amount }
 
         // Recent transactions for the quick-summary list (latest 5)
         val recent = transactions.sortedByDescending { it.transaction.date }.take(5)
@@ -85,7 +99,9 @@ class DashboardViewModel @Inject constructor(
                     .toLocalDate()
             }
             .map { (date, txs) ->
-                val dayNet = txs.sumOf { if (it.transaction.income) it.transaction.amount else -it.transaction.amount }
+                val dayNet = txs.sumOf {
+                    if (it.transaction.income) it.transaction.amount else -it.transaction.amount
+                }
                 DailyGroup(
                     date = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
                     transactions = txs.sortedByDescending { it.transaction.date },
@@ -98,9 +114,9 @@ class DashboardViewModel @Inject constructor(
             period = period,
             totalSpent = spent,
             totalIncome = income,
-            net = net,
+            net = accountNetBalance,           // Uses starting_balance logic (Scenario A & B)
             recentTransactions = recent,
-            upcomingTransactions = templates.take(3), // Limit to top 3 for "Upcoming" preview
+            upcomingTransactions = templates.take(3),
             dailyTransactions = dailyGroups
         )
     }
@@ -113,7 +129,7 @@ data class DailyGroup(
     val dailyNet: Double
 )
 
-// ── UI state sealed class ──────────────────────────────────────────────────────
+// ── UI state sealed class ───────────────────────────────────────────────────────
 
 sealed class DashboardUiState {
     object Loading : DashboardUiState()
@@ -129,4 +145,3 @@ sealed class DashboardUiState {
         val dailyTransactions: List<DailyGroup> = emptyList()
     ) : DashboardUiState()
 }
-
