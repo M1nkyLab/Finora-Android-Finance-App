@@ -42,16 +42,33 @@ import com.dime.app.ui.components.bounceClick
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-// ── Palette (B&W + Red expense / Green income only) ──────────────────────────────
-private val BgDeep    = Color(0xFF0D0D0F)
-private val BgCard    = Color(0xFF17171C)
-private val BgChip    = Color(0xFF232329)
+// ── Semantic colors (same in both themes) ───────────────────────────────────────────
+private val GreenInc     = Color(0xFF34D399)
+private val RedExp       = Color(0xFFFF5C5C)
 private val AccentPurple = Color(0xFF9B6FFF)
-private val GreenInc  = Color(0xFF34D399)
-private val RedExp    = Color(0xFFFF5C5C)
-private val TextPrim  = Color(0xFFF0F0F5)
-private val TextSub   = Color(0xFF7A7A8C)
-private val TextHint  = Color(0xFF4A4A5A)
+
+// ── Theme-adaptive palette ─────────────────────────────────────────────────────────
+private data class InsightsColors(
+    val bgDeep   : Color,
+    val bgCard   : Color,
+    val bgChip   : Color,
+    val textPrim : Color,
+    val textSub  : Color,
+    val textHint : Color
+)
+
+@Composable
+private fun insightsColors(): InsightsColors {
+    val cs = MaterialTheme.colorScheme
+    return InsightsColors(
+        bgDeep   = cs.background,
+        bgCard   = cs.surface,
+        bgChip   = cs.surfaceVariant,
+        textPrim = cs.onBackground,
+        textSub  = cs.secondary,
+        textHint = cs.onSurfaceVariant
+    )
+}
 
 // ── Root screen ───────────────────────────────────────────────────────────────
 
@@ -60,44 +77,52 @@ fun InsightsScreen(
     viewModel: InsightsViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val ic    = insightsColors()
 
     if (state.isEmpty) {
-        InsightsEmptyState()
+        InsightsEmptyState(ic)
         return
     }
 
     LazyColumn(
         modifier            = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(ic.bgDeep),
         contentPadding      = PaddingValues(bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
-        item { InsightsHeader(state.timeFrame.label, onCycleTimeFrame = viewModel::cycleTimeFrame) }
-        item { PeriodSummaryCard(state, viewModel) }
+        item { InsightsHeader(state.timeFrame.label, ic, onCycleTimeFrame = viewModel::cycleTimeFrame) }
+        item { PeriodSummaryCard(state, ic, viewModel) }
         item { Spacer(Modifier.height(16.dp)) }
-        item { QuickSummaryCards(state) }
+        item { QuickSummaryCards(state, ic) }
         item { Spacer(Modifier.height(16.dp)) }
-        item { BarChartCard(state, viewModel) }
+        item { BarChartCard(state, ic, viewModel) }
+
+        // ── Category Breakdown ───────────────────────────────────────────
+        item { Spacer(Modifier.height(16.dp)) }
+        item { CategoryBreakdownCard(state, isIncome = false, ic = ic) }
+        item { Spacer(Modifier.height(12.dp)) }
+        item { CategoryBreakdownCard(state, isIncome = true, ic = ic) }
 
         // ── Transaction History ──────────────────────────────────────────
+
         if (state.dailyTransactions.isNotEmpty()) {
             item {
                 Text(
                     text = "TRANSACTION HISTORY",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextSub,
+                    color = ic.textSub,
                     letterSpacing = 1.sp,
                     modifier = Modifier.padding(horizontal = 20.dp).padding(top = 24.dp, bottom = 4.dp)
                 )
             }
             state.dailyTransactions.forEach { group ->
                 item(key = "ins_day_${group.date}") {
-                    InsightsDayHeader(date = group.date, net = group.dailyNet)
+                    InsightsDayHeader(date = group.date, net = group.dailyNet, ic = ic)
                 }
                 items(group.transactions, key = { txItem -> "ins_tx_" + txItem.transaction.id }) { txItem ->
-                    InsightsTransactionRow(item = txItem)
+                    InsightsTransactionRow(item = txItem, ic = ic)
                 }
             }
         }
@@ -109,6 +134,7 @@ fun InsightsScreen(
 @Composable
 private fun InsightsHeader(
     timeFrameLabel: String,
+    ic: InsightsColors,
     onCycleTimeFrame: () -> Unit
 ) {
     Row(
@@ -123,13 +149,13 @@ private fun InsightsHeader(
             text       = "Insights",
             fontSize   = 26.sp,
             fontWeight = FontWeight.Bold,
-            color      = TextPrim
+            color      = ic.textPrim
         )
         // Time-frame chip — tap to cycle Week → Month → Year
         Surface(
             onClick        = onCycleTimeFrame,
             shape          = RoundedCornerShape(20.dp),
-            color          = BgChip,
+            color          = ic.bgChip,
             tonalElevation = 0.dp
         ) {
             Row(
@@ -137,8 +163,8 @@ private fun InsightsHeader(
                 verticalAlignment   = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(timeFrameLabel, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrim)
-                Text("↕", fontSize = 11.sp, color = TextSub)
+                Text(timeFrameLabel, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = ic.textPrim)
+                Text("↕", fontSize = 11.sp, color = ic.textSub)
             }
         }
     }
@@ -148,7 +174,8 @@ private fun InsightsHeader(
 
 @Composable
 private fun PeriodNavigator(
-    state: InsightsUiState
+    state: InsightsUiState,
+    ic: InsightsColors
 ) {
     val currency = LocalCurrency.current
     val nf = remember(currency.showCents) { 
@@ -172,20 +199,20 @@ private fun PeriodNavigator(
                 text = "NET BALANCE",
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextHint
+                color = ic.textHint
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = currency.code + " ",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextSub
+                    color = ic.textSub
                 )
                 Text(
                     text = nf.format(netBalance as Any),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrim
+                    color = ic.textPrim
                 )
             }
         }
@@ -195,20 +222,20 @@ private fun PeriodNavigator(
                 text = (if (state.timeFrame == InsightsTimeFrame.YEAR) "AVG / MTH" else "SPENT / DAY"),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextHint
+                color = ic.textHint
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = currency.code + " ",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextSub
+                    color = ic.textSub
                 )
                 Text(
                     text = nf.format(state.current.avgPerDay as Any),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrim
+                    color = ic.textPrim
                 )
             }
         }
@@ -216,7 +243,7 @@ private fun PeriodNavigator(
 }
 
 @Composable
-private fun QuickSummaryCards(state: InsightsUiState) {
+private fun QuickSummaryCards(state: InsightsUiState, ic: InsightsColors) {
     val s = state.current
     val currency = LocalCurrency.current
     val nf = remember(currency.showCents) { 
@@ -287,6 +314,7 @@ private fun QuickSummaryCards(state: InsightsUiState) {
 @Composable
 private fun PeriodSummaryCard(
     state: InsightsUiState,
+    ic: InsightsColors,
     vm: InsightsViewModel
 ) {
     val s = state.current
@@ -306,7 +334,7 @@ private fun PeriodSummaryCard(
             text = state.periodLabel.uppercase(),
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
-            color = TextSub,
+            color = ic.textSub,
             letterSpacing = 0.3.sp
         )
         Spacer(Modifier.height(12.dp))
@@ -322,7 +350,7 @@ private fun PeriodSummaryCard(
                     text = "NET BALANCE",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextHint,
+                    color = ic.textHint,
                     letterSpacing = 0.3.sp
                 )
                 Spacer(Modifier.height(4.dp))
@@ -331,7 +359,7 @@ private fun PeriodSummaryCard(
                         text = (if (s.netPositive) "+" else "−") + currency.code,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextHint,
+                        color = ic.textHint,
                         fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
                     )
                     com.dime.app.ui.components.AnimatedAmountText(
@@ -350,7 +378,7 @@ private fun PeriodSummaryCard(
                     text = if (state.timeFrame == InsightsTimeFrame.YEAR) "AVG/MTH" else "SPENT/DAY",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextHint,
+                    color = ic.textHint,
                     letterSpacing = 0.3.sp
                 )
                 Spacer(Modifier.height(4.dp))
@@ -359,14 +387,14 @@ private fun PeriodSummaryCard(
                         text = currency.code,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextHint,
+                        color = ic.textHint,
                         fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
                     )
                     com.dime.app.ui.components.AnimatedAmountText(
                         amount = s.avgPerDay.toFloat(),
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextPrim,
+                        color = ic.textPrim,
                         letterSpacing = (-1).sp
                     )
                 }
@@ -382,7 +410,8 @@ private fun SummaryBlock(
     color: Color,
     selected: Boolean, // Kept parameter to avoid breaking references, though styling is now flat
     modifier: Modifier = Modifier,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    ic: InsightsColors
 ) {
     Column(
         modifier = modifier
@@ -392,7 +421,7 @@ private fun SummaryBlock(
         Text(
             text = label.uppercase(),
             fontSize = 11.sp,
-            color = TextSub,
+            color = ic.textSub,
             fontWeight = FontWeight.Bold,
             letterSpacing = 0.5.sp
         )
@@ -411,6 +440,7 @@ private fun SummaryBlock(
 @Composable
 private fun BarChartCard(
     state: InsightsUiState,
+    ic: InsightsColors,
     vm: InsightsViewModel
 ) {
     if (state.bars.isEmpty()) return
@@ -434,8 +464,8 @@ private fun BarChartCard(
                         .padding(bottom = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(bar.label, fontSize = 13.sp, color = TextSub, fontWeight = FontWeight.Medium)
-                    Text(formatAmount(bar.amount), fontSize = 13.sp, color = TextPrim, fontWeight = FontWeight.Bold)
+                    Text(bar.label, fontSize = 13.sp, color = ic.textSub, fontWeight = FontWeight.Medium)
+                    Text(formatAmount(bar.amount), fontSize = 13.sp, color = ic.textPrim, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -457,8 +487,8 @@ private fun BarChartCard(
                 val isSelected = idx == state.selectedBarIndex
                 val barColor   = when {
                     isSelected    -> AccentPurple
-                    entry.isToday -> TextSub.copy(alpha = 0.6f)
-                    else          -> BgChip
+                    entry.isToday -> ic.textSub.copy(alpha = 0.6f)
+                    else          -> ic.bgChip
                 }
 
                 Column(
@@ -510,14 +540,12 @@ private fun BarChartCard(
                     text     = entry.label,
                     modifier = Modifier.weight(1f),
                     fontSize = 10.sp,
-                    color    = TextSub,
+                    color    = ic.textSub,
                     maxLines = 1,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }
         }
-
-        // AVG/DAY footer removed as per request
     }
 }
 
@@ -526,7 +554,8 @@ private fun BarChartCard(
 @Composable
 private fun CategoryBreakdownCard(
     state: InsightsUiState,
-    isIncome: Boolean
+    isIncome: Boolean,
+    ic: InsightsColors
 ) {
     val slices = if (isIncome) state.incomeSlices else state.expenseSlices
     if (slices.isEmpty()) return
@@ -539,7 +568,7 @@ private fun CategoryBreakdownCard(
             .fillMaxWidth()
             .padding(horizontal = 20.dp)
             .clip(RoundedCornerShape(18.dp))
-            .background(BgCard)
+            .background(ic.bgCard)
             .padding(horizontal = 16.dp, vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
@@ -553,7 +582,7 @@ private fun CategoryBreakdownCard(
                 text       = if (isIncome) "Income" else "Expenses",
                 fontSize   = 13.sp,
                 fontWeight = FontWeight.SemiBold,
-                color      = TextSub
+                color      = ic.textSub
             )
             Text(
                 text       = formatAmount(total),
@@ -573,7 +602,7 @@ private fun CategoryBreakdownCard(
         // Category rows
         slices.forEachIndexed { i, slice ->
             if (i > 0) Spacer(Modifier.height(10.dp))
-            CategoryRow(slice, accentColor, i)
+            CategoryRow(slice, accentColor, i, ic)
         }
     }
 }
@@ -619,7 +648,8 @@ private fun HorizontalSegmentedBar(
 private fun CategoryRow(
     slice: CategorySlice,
     accent: Color,
-    index: Int
+    index: Int,
+    ic: InsightsColors
 ) {
     val palette = remember(1) { generatePalette(10, accent) }
     val color   = palette.getOrElse(index) { accent }
@@ -642,7 +672,7 @@ private fun CategoryRow(
             text       = "${slice.category.emoji} ${slice.category.name}",
             fontSize   = 14.sp,
             fontWeight = FontWeight.SemiBold,
-            color      = TextPrim,
+            color      = ic.textPrim,
             modifier   = Modifier.weight(1f),
             maxLines   = 1,
             overflow   = TextOverflow.Ellipsis
@@ -651,7 +681,7 @@ private fun CategoryRow(
         Text(
             text     = formatAmount(slice.amount),
             fontSize = 13.sp,
-            color    = TextSub,
+            color    = ic.textSub,
             fontWeight = FontWeight.Medium
         )
 
@@ -673,11 +703,11 @@ private fun CategoryRow(
 // ── Empty state ────────────────────────────────────────────────────────────────
 
 @Composable
-private fun InsightsEmptyState() {
+private fun InsightsEmptyState(ic: InsightsColors) {
     Box(
         modifier         = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(ic.bgDeep),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -690,12 +720,12 @@ private fun InsightsEmptyState() {
                 "Analyse Your Expenditure",
                 fontSize   = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color      = TextPrim
+                color      = ic.textPrim
             )
             Text(
                 "As transactions start piling up",
                 fontSize = 14.sp,
-                color    = TextSub
+                color    = ic.textSub
             )
         }
     }
@@ -726,7 +756,7 @@ private fun insFormatTime(epochMs: Long): String =
     Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()).toLocalTime().format(insTimeFmt)
 
 @Composable
-private fun InsightsDayHeader(date: Long, net: Double) {
+private fun InsightsDayHeader(date: Long, net: Double, ic: InsightsColors) {
     val currency = LocalCurrency.current
     val dt = Instant.ofEpochMilli(date).atZone(ZoneId.systemDefault()).toLocalDate()
     val dayLabel = dt.format(DateTimeFormatter.ofPattern("EEE, d MMM", Locale.ENGLISH)).uppercase()
@@ -746,24 +776,25 @@ private fun InsightsDayHeader(date: Long, net: Double) {
                 text = dayLabel,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextSub,
+                color = ic.textSub,
                 letterSpacing = 1.sp
             )
             Text(
                 text = "NET " + (if (net >= 0) "+" else "\u2212") + currency.format(abs(net)),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextSub
+                color = ic.textSub
             )
         }
         Spacer(Modifier.height(4.dp))
-        HorizontalDivider(thickness = 0.5.dp, color = TextHint.copy(alpha = 0.3f))
+        HorizontalDivider(thickness = 0.5.dp, color = ic.textHint.copy(alpha = 0.3f))
     }
 }
 
 @Composable
 private fun InsightsTransactionRow(
-    item: TransactionWithCategory
+    item: TransactionWithCategory,
+    ic: InsightsColors
 ) {
     val tx = item.transaction
     val cat = item.category
@@ -793,7 +824,7 @@ private fun InsightsTransactionRow(
                 text = tx.note.ifBlank { cat?.name ?: "Transaction" },
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = TextPrim,
+                color = ic.textPrim,
                 modifier = Modifier.weight(1f, fill = false),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -802,7 +833,7 @@ private fun InsightsTransactionRow(
                 Icon(
                     imageVector = Icons.Rounded.Autorenew,
                     contentDescription = "Recurring",
-                    tint = TextSub,
+                    tint = ic.textSub,
                     modifier = Modifier.size(13.dp)
                 )
             }

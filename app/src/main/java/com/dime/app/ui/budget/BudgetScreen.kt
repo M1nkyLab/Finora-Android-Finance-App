@@ -16,9 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
@@ -31,6 +28,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dime.app.data.local.entity.CategoryEntity
 import com.dime.app.util.LocalCurrency
+
+// ── Semantic colors ───────────────────────────────────────────────────────────
+private val ExpenseRed = Color(0xFFFF5C5C)
+private val GreenInc   = Color(0xFF34D399)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -255,7 +256,7 @@ private fun BudgetCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .matchParentSize()
-                .background(Color.Red, RoundedCornerShape(18.dp))
+                .background(ExpenseRed, RoundedCornerShape(18.dp))
                 .clickable { onDelete() }
                 .padding(end = 20.dp),
             horizontalArrangement = Arrangement.End,
@@ -289,14 +290,11 @@ private fun BudgetCard(
     }
 }
 
-private val GreenInc  = Color(0xFF34D399)
-private val RedExp    = Color(0xFFFF5C5C)
-private val AccentPurple = Color(0xFF9B6FFF)
 
 @Composable
 private fun BudgetCardContent(item: BudgetDisplayItem) {
     val barColor = when {
-        item.isOverBudget -> RedExp
+        item.isOverBudget -> ExpenseRed
         item.showGreen    -> GreenInc
         else              -> MaterialTheme.colorScheme.primary
     }
@@ -358,7 +356,7 @@ private fun BudgetCardContent(item: BudgetDisplayItem) {
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     formatMoney(item.spent),
-                    color      = if (item.isOverBudget) RedExp else MaterialTheme.colorScheme.onSurface,
+                    color      = if (item.isOverBudget) ExpenseRed else MaterialTheme.colorScheme.onSurface,
                     fontSize   = 15.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -372,29 +370,28 @@ private fun BudgetCardContent(item: BudgetDisplayItem) {
 
         Spacer(Modifier.height(12.dp))
 
-        // Progress bar
+        // Progress bar — track + fill rendered separately to avoid stacking bug
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(6.dp)
                 .clip(RoundedCornerShape(3.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
-                .drawWithContent {
-                    drawContent()
-                    val width = size.width * animatedProgress
-                    drawRoundRect(
-                        color = barColor,
-                        size = Size(width, size.height),
-                        cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx())
-                    )
-                }
-        )
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(animatedProgress.coerceIn(0f, 1f))
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(barColor)
+            )
+        }
 
         if (item.isOverBudget) {
             Spacer(Modifier.height(6.dp))
             Text(
                 "Over by ${formatMoney(item.spent - item.amount)}",
-                color    = RedExp,
+                color    = ExpenseRed,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -593,7 +590,7 @@ private fun NewBudgetSheet(
                 Switch(
                     checked = sheet.showGreen,
                     onCheckedChange = { onToggleGreen() },
-                    colors  = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Color.Green)
+                    colors  = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = GreenInc)
                 )
             }
         }
@@ -603,7 +600,7 @@ private fun NewBudgetSheet(
         sheet.errorMessage?.let { err ->
             Text(
                 err,
-                color    = Color.Red,
+                color    = ExpenseRed,
                 fontSize = 13.sp,
                 modifier = Modifier.padding(horizontal = 24.dp)
             )

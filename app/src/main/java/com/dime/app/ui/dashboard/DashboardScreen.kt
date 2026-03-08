@@ -71,21 +71,21 @@ private fun dashColors(): DashColors {
     val dark = isSystemInDarkTheme()
     val cs   = MaterialTheme.colorScheme
     return if (dark) DashColors(
-        bgDeep       = Color(0xFF000000),
-        bgCard       = Color(0xFF0F0F14),
-        bgCardAlt    = Color(0xFF14141C),
-        accentPurple = Color(0xFF9B6FFF),
+        bgDeep       = Color(0xFF000000),      // background
+        bgCard       = Color(0xFF0F0F14),      // surface
+        bgCardAlt    = Color(0xFF1A1A24),      // surfaceVariant
+        accentPurple = Color(0xFF9B6FFF),      // tertiary
         accentBlue   = Color(0xFF5B8FFF),
-        accentGreen  = Color(0xFF34D399),
-        accentRed    = Color(0xFFFF5C5C),
-        textPrimary  = Color(0xFFF0F0F5),
-        textSub      = Color(0xFF7A7A8C),
-        divider      = Color(0xFF2A2A35)
+        accentGreen  = Color(0xFF34D399),      // IncomeGreen
+        accentRed    = Color(0xFFFF5C5C),      // ExpenseRed
+        textPrimary  = Color(0xFFF0F0F5),      // onBackground
+        textSub      = Color(0xFF7A7A8C),      // secondary
+        divider      = Color(0xFF2A2A38)       // outline
     ) else DashColors(
         bgDeep       = cs.background,
         bgCard       = cs.surface,
         bgCardAlt    = cs.surfaceVariant,
-        accentPurple = cs.primary,
+        accentPurple = Color(0xFF7060CC),      // light tertiary
         accentBlue   = cs.secondary,
         accentGreen  = Color(0xFF1B8A5A),
         accentRed    = Color(0xFFD32F2F),

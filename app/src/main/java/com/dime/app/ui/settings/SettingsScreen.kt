@@ -23,6 +23,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 // ── Popular currencies ────────────────────────────────────────────────────────
+private val ExpenseRed = androidx.compose.ui.graphics.Color(0xFFFF5C5C)
+
 private val popularCurrencies = listOf(
     Triple("USD", "$", "US Dollar"),
     Triple("EUR", "€", "Euro"),
@@ -134,9 +136,9 @@ fun SettingsScreen(
                     SettingsDivider()
                     SettingsRow(
                         icon     = Icons.Rounded.DeleteForever,
-                        iconTint = Color.Red,
+                        iconTint = ExpenseRed,
                         label    = "Erase all data",
-                        labelColor = Color.Red,
+                        labelColor = ExpenseRed,
                         onClick  = viewModel::openEraseConfirm
                     )
                 }
@@ -587,16 +589,16 @@ private fun EraseDataDialog(
                     modifier = Modifier
                         .size(52.dp)
                         .clip(CircleShape)
-                        .background(Color.Red.copy(alpha = 0.15f))
+                        .background(ExpenseRed.copy(alpha = 0.15f))
                         .align(Alignment.CenterHorizontally),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Rounded.Warning, contentDescription = null, tint = Color.Red, modifier = Modifier.size(28.dp))
+                    Icon(Icons.Rounded.Warning, contentDescription = null, tint = ExpenseRed, modifier = Modifier.size(28.dp))
                 }
                 Spacer(Modifier.height(16.dp))
                 Text(
                     "Erase All Data",
-                    color      = Color.Red,
+                    color      = ExpenseRed,
                     fontSize   = 18.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign  = TextAlign.Center,
@@ -621,11 +623,11 @@ private fun EraseDataDialog(
                     placeholder   = { Text("delete", color = MaterialTheme.colorScheme.secondary) },
                     singleLine    = true,
                     colors        = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor   = Color.Red,
+                        focusedBorderColor   = ExpenseRed,
                         unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant,
                         focusedTextColor     = MaterialTheme.colorScheme.onSurface,
                         unfocusedTextColor   = MaterialTheme.colorScheme.onSurface,
-                        cursorColor          = Color.Red
+                        cursorColor          = ExpenseRed
                     ),
                     shape = RoundedCornerShape(10.dp)
                 )
@@ -640,7 +642,7 @@ private fun EraseDataDialog(
                         onClick  = onConfirm,
                         enabled  = confirmText.lowercase() == "delete" && !isErasing,
                         modifier = Modifier.weight(1f),
-                        colors   = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                        colors   = ButtonDefaults.buttonColors(containerColor = ExpenseRed),
                         shape    = RoundedCornerShape(10.dp)
                     ) {
                         if (isErasing) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)

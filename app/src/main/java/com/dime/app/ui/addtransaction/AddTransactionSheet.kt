@@ -523,11 +523,11 @@ private fun AccountRow(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
-                    .background(if (selected) Color(0xFF1A2A3A) else BgCard)
+                    .background(if (selected) TextPrimary.copy(alpha = 0.12f) else BgCard)
                     .border(
-                        1.dp,
-                        if (selected) Color(0xFF4A90D9).copy(alpha = 0.6f) else DividerCol,
-                        RoundedCornerShape(12.dp)
+                        width = if (selected) 1.5.dp else 1.dp,
+                        color = if (selected) TextPrimary.copy(alpha = 0.4f) else DividerCol,
+                        shape = RoundedCornerShape(12.dp)
                     )
                     .bounceClick { onSelect(acc.id) }
                     .padding(horizontal = 14.dp, vertical = 10.dp)
@@ -539,14 +539,14 @@ private fun AccountRow(
                     Icon(
                         Icons.Rounded.AccountBalance,
                         contentDescription = null,
-                        tint     = if (selected) Color(0xFF4A90D9) else TextSub,
+                        tint     = if (selected) TextPrimary else TextSub,
                         modifier = Modifier.size(14.dp)
                     )
                     Text(
                         acc.accountName,
                         fontSize   = 13.sp,
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                        color      = if (selected) Color(0xFF4A90D9) else TextPrimary,
+                        color      = if (selected) TextPrimary else TextSub,
                         maxLines   = 1
                     )
                 }
